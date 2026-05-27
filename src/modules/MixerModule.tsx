@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
 import Knob from '../components/Knob';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
 const CHANNEL_COLORS = ['#f97316', '#38bdf8', '#4ade80', '#f472b6'];
 
@@ -10,7 +10,7 @@ interface MixerModuleProps {
   id: string;
 }
 
-export default function MixerModule({ id }: MixerModuleProps) {
+function MixerModuleComponent({ id }: MixerModuleProps) {
   const engine = getAudioEngine();
   const [nodes, setNodes] = useState<{ inputs: GainNode[]; output: GainNode } | null>(null);
   const inputGainsRef = useRef<GainNode[]>([]);
@@ -43,16 +43,32 @@ export default function MixerModule({ id }: MixerModuleProps) {
     inputGainsRef.current.forEach((g, i) => {
       g.gain.setTargetAtTime(levels[i], engine.ctx.currentTime, 0.02);
     });
-  }, [levels]);
+  }, [levels, engine.ctx]);
 
   useEffect(() => {
     if (outputGainRef.current)
       outputGainRef.current.gain.setTargetAtTime(masterLevel, engine.ctx.currentTime, 0.02);
-  }, [masterLevel]);
+  }, [masterLevel, engine.ctx]);
 
-  const setLevel = (i: number, v: number) => {
+  const setLevel = useCallback((i: number, v: number) => {
     setLevels((prev) => prev.map((l, idx) => (idx === i ? v : l)));
-  };
+  }, []);
+
+  const ports = nodes?.inputs.map((node, i) => ({
+    id: `${id}_ch${i + 1}_in`,
+    moduleId: id,
+    type: 'input' as const,
+    label: `CH${i + 1}`,
+    audioNode: node,
+  })) || [];
+
+  ports.push({
+    id: `${id}_out`,
+    moduleId: id,
+    type: 'output' as const,
+    label: 'OUT',
+    audioNode: nodes?.output,
+  });
 
   return (
     <ModulePanel title="MIXER" subtitle="4-Channel" accentColor={accentColor} width={205} badge="MIX">
@@ -60,27 +76,45 @@ export default function MixerModule({ id }: MixerModuleProps) {
         {levels.map((level, i) => (
           <div key={i} className="flex flex-col items-center gap-1" style={{ flex: 1 }}>
             <div className="relative flex justify-center" style={{ height: 60 }}>
-              <div className="absolute rounded-full" style={{
-                width: 3, height: '100%', background: '#0a0a18', border: '1px solid #2a2a4a',
-                left: '50%', transform: 'translateX(-50%)',
-              }} />
-              <div className="absolute rounded-full" style={{
-                width: 3,
-                height: `${level * 100}%`,
-                background: `linear-gradient(to top, ${CHANNEL_COLORS[i]}, ${CHANNEL_COLORS[i]}88)`,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                bottom: 0,
-                boxShadow: `0 0 6px ${CHANNEL_COLORS[i]}66`,
-              }} />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  width: 3,
+                  height: '100%',
+                  background: '#0a0a18',
+                  border: '1px solid #2a2a4a',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  width: 3,
+                  height: `${level * 100}%`,
+                  background: `linear-gradient(to top, ${CHANNEL_COLORS[i]}, ${CHANNEL_COLORS[i]}88)`,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  bottom: 0,
+                  boxShadow: `0 0 6px ${CHANNEL_COLORS[i]}66`,
+                }}
+              />
               <input
-                type="range" min={0} max={1} step={0.01} value={level}
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={level}
                 onChange={(e) => setLevel(i, parseFloat(e.target.value))}
                 className="absolute h-full cursor-pointer"
                 style={{
-                  WebkitAppearance: 'slider-vertical', writingMode: 'vertical-lr',
-                  direction: 'rtl', width: 20, opacity: 0, zIndex: 10,
-                }}
+                  WebkitAppearance: 'slider-vertical',
+                  writingMode: 'vertical-lr',
+                  direction: 'rtl',
+                  width: 20,
+                  opacity: 0,
+                  zIndex: 10,
+                } as React.CSSProperties}
               />
             </div>
             <div style={{ fontSize: 7, color: CHANNEL_COLORS[i], fontFamily: 'monospace' }}>CH{i + 1}</div>
@@ -94,16 +128,9 @@ export default function MixerModule({ id }: MixerModuleProps) {
         <Knob value={masterLevel} min={0} max={1} onChange={setMasterLevel} label="" unit="%" size="sm" color={accentColor} />
       </div>
 
-      <div className="rounded p-2" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace' }}>INPUTS / OUTPUT</div>
-        <div className="flex justify-around">
-          {levels.map((_, i) => (
-            <JackPort key={i} id={`${id}_ch${i + 1}_in`} moduleId={id} type="input" label={`CH${i + 1}`}
-              audioNode={nodes?.inputs[i]} />
-          ))}
-          <JackPort id={`${id}_out`} moduleId={id} type="output" label="OUT" audioNode={nodes?.output} />
-        </div>
-      </div>
+      <ModuleIOSection ports={ports} title="INPUTS / OUTPUT" />
     </ModulePanel>
   );
 }
+
+export default React.memo(MixerModuleComponent);

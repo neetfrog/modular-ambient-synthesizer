@@ -518,18 +518,19 @@ export default function App() {
     >
       {/* Header */}
       <div
-        className="flex-none flex items-center justify-between px-6 py-2"
+        className="flex-none flex flex-col max-sm:flex-row max-sm:flex-wrap items-center justify-between px-6 max-sm:px-3 py-2 gap-2 max-sm:gap-1"
         style={{
           background: 'linear-gradient(180deg, #0d0d20 0%, #08081a 100%)',
           borderBottom: '1px solid #1a1a30',
           zIndex: 100,
         }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 max-sm:gap-2 min-w-0">
           <div
             style={{
               fontFamily: 'monospace',
               fontSize: 18,
+              maxWidth: '200px',
               fontWeight: 900,
               letterSpacing: '0.15em',
               background: 'linear-gradient(90deg, #f97316, #a78bfa)',
@@ -537,6 +538,7 @@ export default function App() {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}
+            className="max-sm:text-sm"
           >
             SYNTHEX
           </div>
@@ -548,15 +550,16 @@ export default function App() {
               letterSpacing: '0.15em',
               paddingTop: 2,
             }}
+            className="max-sm:hidden"
           >
             MODULAR AMBIENT SYNTHESIZER
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 max-sm:gap-1 max-sm:text-xs flex-wrap max-sm:justify-end max-sm:w-full">
           {/* Cable count */}
           <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded"
+            className="flex items-center gap-1.5 px-3 py-1 max-sm:px-2 max-sm:py-0.5 rounded"
             style={{
               background: '#0a0a18',
               border: '1px solid #1a1a30',
@@ -574,12 +577,13 @@ export default function App() {
                 boxShadow: cables.length > 0 ? '0 0 6px #4ade80' : 'none',
               }}
             />
-            {cables.length} CABLES PATCHED
+            <span className="max-sm:hidden">{cables.length} CABLES PATCHED</span>
+            <span className="sm:hidden">{cables.length}</span>
           </div>
 
-          {/* Help */}
+          {/* Help - hidden on mobile */}
           <div
-            className="px-3 py-1 rounded"
+            className="max-sm:hidden px-3 py-1 rounded"
             style={{
               background: '#0a0a18',
               border: '1px solid #1a1a30',
@@ -596,7 +600,7 @@ export default function App() {
           <div className="relative">
             <button
               onClick={() => setShowPresetMenu((v) => !v)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded transition-all"
+              className="flex items-center gap-2 px-4 max-sm:px-2 py-1.5 max-sm:py-0.5 rounded transition-all text-sm max-sm:text-xs"
               style={{
                 fontFamily: 'monospace',
                 fontSize: 10,
@@ -618,6 +622,8 @@ export default function App() {
                   boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
                   zIndex: 200,
                   minWidth: 220,
+                  maxHeight: '60vh',
+                  overflowY: 'auto',
                 }}
               >
                 {PRESETS.map((preset) => (
@@ -652,7 +658,7 @@ export default function App() {
           <div className="relative">
             <button
               onClick={() => setShowAddMenu((v) => !v)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded transition-all"
+              className="flex items-center gap-2 px-4 max-sm:px-2 py-1.5 max-sm:py-0.5 rounded transition-all text-sm max-sm:text-xs"
               style={{
                 fontFamily: 'monospace',
                 fontSize: 10,
@@ -663,7 +669,8 @@ export default function App() {
                 cursor: 'pointer',
               }}
             >
-              + ADD MODULE
+              <span className="max-sm:hidden">+ ADD MODULE</span>
+              <span className="sm:hidden">+</span>
             </button>
             {showAddMenu && (
               <div
@@ -674,6 +681,8 @@ export default function App() {
                   boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
                   zIndex: 200,
                   minWidth: 180,
+                  maxHeight: '60vh',
+                  overflowY: 'auto',
                 }}
               >
                 {ADD_OPTIONS.map((opt) => (
@@ -710,9 +719,9 @@ export default function App() {
         style={{ background: 'transparent' }}
         onClick={handleCanvasClick}
       >
-        {/* Background grid */}
+        {/* Background grid - hidden on mobile */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none max-sm:hidden"
           style={{
             backgroundImage: `
               linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
@@ -726,9 +735,9 @@ export default function App() {
           }}
         />
 
-        {/* Radial glow */}
+        {/* Radial glow - hidden on mobile */}
         <div
-          className="absolute pointer-events-none"
+          className="absolute pointer-events-none max-sm:hidden"
           style={{
             width: '80vw',
             height: '80vh',
@@ -741,10 +750,13 @@ export default function App() {
         />
 
         {/* Modules */}
-        <div style={{ position: 'relative', minWidth: canvasW, minHeight: canvasH }}>
+        <div 
+          className="synth-modules-container"
+          style={{ position: 'relative', minWidth: canvasW, minHeight: canvasH }}>
           {modules.map((mod) => (
             <div
               key={mod.id}
+              className="synth-module-wrapper"
               style={{
                 position: 'absolute',
                 left: mod.x,
@@ -815,6 +827,28 @@ export default function App() {
         input[type=range] { -webkit-appearance: none; appearance: none; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; }
         button { outline: none; }
+        
+        @media (max-width: 640px) {
+          .synth-modules-container {
+            display: flex !important;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px;
+            width: 100% !important;
+            min-width: 100% !important;
+            min-height: auto !important;
+            position: static !important;
+          }
+          
+          .synth-module-wrapper {
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: 10 !important;
+            width: 100% !important;
+            max-width: calc(100vw - 24px) !important;
+          }
+        }
       `}</style>
     </div>
   );

@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
 import Knob from '../components/Knob';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleButton } from '../components/ModuleButton';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
 type WaveformType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
 const WAVEFORM_ICONS: Record<WaveformType, string> = {
-  sine: '∿', square: '⊓', sawtooth: '⋀', triangle: '△',
+  sine: '∿',
+  square: '⊓',
+  sawtooth: '⋀',
+  triangle: '△',
 };
 
 interface VCOModuleProps {
@@ -16,7 +20,7 @@ interface VCOModuleProps {
   accentColor?: string;
 }
 
-export default function VCOModule({ id, label = 'VCO-1', accentColor = '#f97316' }: VCOModuleProps) {
+function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VCOModuleProps) {
   const engine = getAudioEngine();
   const oscRef = useRef<OscillatorNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
@@ -54,7 +58,9 @@ export default function VCOModule({ id, label = 'VCO-1', accentColor = '#f97316'
     setNodes({ out: gain, fmIn: fmGain, pmIn: pmGain });
 
     return () => {
-      try { osc.stop(); } catch {}
+      try {
+        osc.stop();
+      } catch {}
       osc.disconnect();
       gain.disconnect();
       fmGain.disconnect();
@@ -67,7 +73,7 @@ export default function VCOModule({ id, label = 'VCO-1', accentColor = '#f97316'
       oscRef.current.frequency.setTargetAtTime(freq, engine.ctx.currentTime, 0.01);
       if (fmGainRef.current) fmGainRef.current.gain.value = freq * 2;
     }
-  }, [freq]);
+  }, [freq, engine.ctx]);
 
   useEffect(() => {
     if (oscRef.current) oscRef.current.detune.value = detune;
@@ -80,48 +86,62 @@ export default function VCOModule({ id, label = 'VCO-1', accentColor = '#f97316'
   useEffect(() => {
     if (gainRef.current)
       gainRef.current.gain.setTargetAtTime(isRunning ? 1 : 0, engine.ctx.currentTime, 0.01);
-  }, [isRunning]);
+  }, [isRunning, engine.ctx]);
+
+  const handleToggle = useCallback(() => {
+    engine.resume();
+    setIsRunning((v) => !v);
+  }, [engine]);
+
+  const displayFreq = freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`;
 
   return (
     <ModulePanel title={label} subtitle="Voltage Ctrl Osc" accentColor={accentColor} width={190} badge="VCO">
       <div className="flex gap-1 mb-3">
         {(Object.keys(WAVEFORM_ICONS) as WaveformType[]).map((w) => (
-          <button
+          <ModuleButton
             key={w}
+            isActive={waveform === w}
             onClick={() => setWaveform(w)}
-            className="flex-1 flex items-center justify-center rounded text-sm transition-all"
-            style={{
-              height: 26,
-              background: waveform === w ? `${accentColor}33` : '#0a0a18',
-              border: `1px solid ${waveform === w ? accentColor : '#2a2a4a'}`,
-              color: waveform === w ? accentColor : '#555577',
-              fontFamily: 'monospace',
-              fontSize: 14,
-              boxShadow: waveform === w ? `0 0 8px ${accentColor}44` : 'none',
-              cursor: 'pointer',
-            }}
+            label={WAVEFORM_ICONS[w]}
+            accentColor={accentColor}
             title={w}
-          >
-            {WAVEFORM_ICONS[w]}
-          </button>
+            className="flex-1"
+          />
         ))}
       </div>
 
       <div
         className="text-center rounded mb-2 py-1"
-        style={{ background: '#08081a', border: '1px solid #1a1a30', fontFamily: 'monospace', fontSize: 11, color: accentColor }}
+        style={{
+          background: '#08081a',
+          border: '1px solid #1a1a30',
+          fontFamily: 'monospace',
+          fontSize: 11,
+          color: accentColor,
+        }}
       >
-        {freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`}
+        {displayFreq}
       </div>
 
       <div className="flex gap-2 justify-around mb-3">
-        <Knob value={freq} min={20} max={4000} onChange={setFreq} label="Freq" unit="Hz" size="md" color={accentColor} logarithmic />
+        <Knob
+          value={freq}
+          min={20}
+          max={4000}
+          onChange={setFreq}
+          label="Freq"
+          unit="Hz"
+          size="md"
+          color={accentColor}
+          logarithmic
+        />
         <Knob value={detune} min={-100} max={100} onChange={setDetune} label="Detune" size="md" color={accentColor} />
       </div>
 
       <div className="flex justify-center mb-3">
         <button
-          onClick={() => { engine.resume(); setIsRunning((v) => !v); }}
+          onClick={handleToggle}
           className="rounded px-4 py-1 text-xs font-bold transition-all"
           style={{
             fontFamily: 'monospace',
@@ -137,16 +157,16 @@ export default function VCOModule({ id, label = 'VCO-1', accentColor = '#f97316'
         </button>
       </div>
 
-      <div className="rounded p-2 mt-1" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace', letterSpacing: '0.06em' }}>
-          OUTPUTS / INPUTS
-        </div>
-        <div className="flex justify-around">
-          <JackPort id={`${id}_out`} moduleId={id} type="output" label="OUT" audioNode={nodes?.out} />
-          <JackPort id={`${id}_fm_in`} moduleId={id} type="input" label="FM IN" audioNode={nodes?.fmIn} />
-          <JackPort id={`${id}_pm_in`} moduleId={id} type="input" label="PM IN" audioNode={nodes?.pmIn} />
-        </div>
-      </div>
+      <ModuleIOSection
+        ports={[
+          { id: `${id}_out`, moduleId: id, type: 'output', label: 'OUT', audioNode: nodes?.out },
+          { id: `${id}_fm_in`, moduleId: id, type: 'input', label: 'FM IN', audioNode: nodes?.fmIn },
+          { id: `${id}_pm_in`, moduleId: id, type: 'input', label: 'PM IN', audioNode: nodes?.pmIn },
+        ]}
+        title="OUTPUTS / INPUTS"
+      />
     </ModulePanel>
   );
 }
+
+export default React.memo(VCOModuleComponent);

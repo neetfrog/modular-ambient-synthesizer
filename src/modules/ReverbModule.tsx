@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
 import Knob from '../components/Knob';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
 function createImpulseResponse(ctx: AudioContext, duration: number, decay: number) {
   const sampleRate = ctx.sampleRate;
@@ -21,7 +21,7 @@ interface ReverbModuleProps {
   id: string;
 }
 
-export default function ReverbModule({ id }: ReverbModuleProps) {
+function ReverbModuleComponent({ id }: ReverbModuleProps) {
   const engine = getAudioEngine();
   const reverbRef = useRef<ConvolverNode | null>(null);
   const dryGainRef = useRef<GainNode | null>(null);
@@ -69,47 +69,76 @@ export default function ReverbModule({ id }: ReverbModuleProps) {
     const ctx = engine.ctx;
     const reverb = ctx.createConvolver();
     reverb.buffer = createImpulseResponse(ctx, roomSize, decay);
-    try { reverbRef.current.disconnect(); } catch {}
+    try {
+      reverbRef.current.disconnect();
+    } catch {}
     inputGainRef.current.connect(reverb);
     reverb.connect(wetGainRef.current);
     reverbRef.current = reverb;
-  }, [roomSize, decay]);
+  }, [roomSize, decay, engine.ctx]);
 
   useEffect(() => {
     if (dryGainRef.current) dryGainRef.current.gain.value = 1 - mix;
     if (wetGainRef.current) wetGainRef.current.gain.value = mix;
   }, [mix]);
 
+  // Memoize reverb visualization
+  const reverbBars = useMemo(() => {
+    return Array.from({ length: 20 }).map((_, i) => {
+      const amplitude = Math.exp((-i * decay) / 20) * mix;
+      return Math.max(1, amplitude * 22);
+    });
+  }, [decay, mix]);
+
   return (
     <ModulePanel title="REVERB" subtitle="Convolution" accentColor={accentColor} width={175} badge="FX">
       <div className="flex gap-2 justify-around mb-3">
-        <Knob value={roomSize} min={0.1} max={10} onChange={setRoomSize} label="Room" unit="s" size="md" color={accentColor} logarithmic />
+        <Knob
+          value={roomSize}
+          min={0.1}
+          max={10}
+          onChange={setRoomSize}
+          label="Room"
+          unit="s"
+          size="md"
+          color={accentColor}
+          logarithmic
+        />
         <Knob value={decay} min={0.1} max={10} onChange={setDecay} label="Decay" size="md" color={accentColor} />
         <Knob value={mix} min={0} max={1} onChange={setMix} label="Mix" unit="%" size="md" color={accentColor} />
       </div>
 
       <div className="rounded mb-3 flex items-center justify-center overflow-hidden" style={{ height: 36, background: '#08081a', border: '1px solid #1a1a30' }}>
         <svg width={150} height={28}>
-          {Array.from({ length: 20 }).map((_, i) => {
+          {reverbBars.map((h, i) => {
             const x = (i / 19) * 140 + 5;
-            const amplitude = Math.exp(-i * decay / 20) * mix;
-            const h = Math.max(1, amplitude * 22);
+            const amplitude = Math.exp((-i * decay) / 20) * mix;
             return (
-              <rect key={i} x={x - 3} y={14 - h} width={6} height={h * 2} rx={1}
-                fill={accentColor} opacity={0.1 + amplitude * 0.8} />
+              <rect
+                key={i}
+                x={x - 3}
+                y={14 - h}
+                width={6}
+                height={h * 2}
+                rx={1}
+                fill={accentColor}
+                opacity={0.1 + amplitude * 0.8}
+              />
             );
           })}
         </svg>
       </div>
 
-      <div className="rounded p-2" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace' }}>I/O</div>
-        <div className="flex justify-around">
-          <JackPort id={`${id}_in`} moduleId={id} type="input" label="IN" audioNode={nodes?.input} />
-          <JackPort id={`${id}_dry_out`} moduleId={id} type="output" label="DRY" audioNode={nodes?.dry} />
-          <JackPort id={`${id}_wet_out`} moduleId={id} type="output" label="WET" audioNode={nodes?.wet} />
-        </div>
-      </div>
+      <ModuleIOSection
+        ports={[
+          { id: `${id}_in`, moduleId: id, type: 'input', label: 'IN', audioNode: nodes?.input },
+          { id: `${id}_dry_out`, moduleId: id, type: 'output', label: 'DRY', audioNode: nodes?.dry },
+          { id: `${id}_wet_out`, moduleId: id, type: 'output', label: 'WET', audioNode: nodes?.wet },
+        ]}
+        title="I/O"
+      />
     </ModulePanel>
   );
 }
+
+export default React.memo(ReverbModuleComponent);

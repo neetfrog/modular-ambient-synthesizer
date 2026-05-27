@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 
 interface KnobProps {
   value: number;
@@ -12,11 +12,10 @@ interface KnobProps {
   logarithmic?: boolean;
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
-}
+// Extract helper functions outside to avoid recreation
+const LERP = (a: number, b: number, t: number) => a + (b - a) * t;
 
-function normalize(value: number, min: number, max: number, log = false) {
+const NORMALIZE = (value: number, min: number, max: number, log = false): number => {
   if (log) {
     const logMin = Math.log(Math.max(min, 0.0001));
     const logMax = Math.log(Math.max(max, 0.0001));
@@ -24,18 +23,18 @@ function normalize(value: number, min: number, max: number, log = false) {
     return (logVal - logMin) / (logMax - logMin);
   }
   return (value - min) / (max - min);
-}
+};
 
-function denormalize(t: number, min: number, max: number, log = false) {
+const DENORMALIZE = (t: number, min: number, max: number, log = false): number => {
   if (log) {
     const logMin = Math.log(Math.max(min, 0.0001));
     const logMax = Math.log(Math.max(max, 0.0001));
-    return Math.exp(lerp(logMin, logMax, t));
+    return Math.exp(LERP(logMin, logMax, t));
   }
-  return lerp(min, max, t);
-}
+  return LERP(min, max, t);
+};
 
-function formatValue(value: number, unit?: string) {
+const FORMAT_VALUE = (value: number, unit?: string): string => {
   if (unit === 'Hz') {
     if (value >= 1000) return `${(value / 1000).toFixed(1)}kHz`;
     return `${value < 10 ? value.toFixed(2) : value.toFixed(0)}Hz`;
@@ -44,9 +43,15 @@ function formatValue(value: number, unit?: string) {
   if (unit === '%') return `${Math.round(value * 100)}%`;
   if (value < 10) return value.toFixed(2);
   return value.toFixed(0);
-}
+};
 
-export default function Knob({
+const SIZE_MAP = {
+  sm: { outer: 36, inner: 24, stroke: 3, fontSize: 9 },
+  md: { outer: 52, inner: 36, stroke: 4, fontSize: 10 },
+  lg: { outer: 68, inner: 48, stroke: 5, fontSize: 11 },
+} as const;
+
+function KnobComponent({
   value,
   min,
   max,
@@ -62,28 +67,46 @@ export default function Knob({
   const dragStart = useRef<{ y: number; value: number } | null>(null);
   const knobRef = useRef<HTMLDivElement>(null);
 
-  const sizeMap = {
-    sm: { outer: 36, inner: 24, stroke: 3, fontSize: 9 },
-    md: { outer: 52, inner: 36, stroke: 4, fontSize: 10 },
-    lg: { outer: 68, inner: 48, stroke: 5, fontSize: 11 },
-  };
-  const { outer, stroke } = sizeMap[size];
+  const { outer, stroke } = SIZE_MAP[size];
 
-  const normalizedValue = normalize(value, min, max, logarithmic);
-  const minAngle = -140;
-  const maxAngle = 140;
-  const angle = lerp(minAngle, maxAngle, normalizedValue);
+  // Memoize expensive calculations
+  const normalizedValue = useMemo(
+    () => NORMALIZE(value, min, max, logarithmic),
+    [value, min, max, logarithmic]
+  );
 
-  const radius = outer / 2 - stroke;
-  const cx = outer / 2;
-  const cy = outer / 2;
-  const startAngle = (minAngle - 90) * (Math.PI / 180);
-  const endAngle = (angle - 90) * (Math.PI / 180);
-  const arcStartX = cx + radius * Math.cos(startAngle);
-  const arcStartY = cy + radius * Math.sin(startAngle);
-  const arcEndX = cx + radius * Math.cos(endAngle);
-  const arcEndY = cy + radius * Math.sin(endAngle);
-  const largeArc = angle - minAngle > 180 ? 1 : 0;
+  const angles = useMemo(() => {
+    const minAngle = -140;
+    const maxAngle = 140;
+    const angle = LERP(minAngle, maxAngle, normalizedValue);
+    const radius = outer / 2 - stroke;
+    const cx = outer / 2;
+    const cy = outer / 2;
+    const startAngle = (minAngle - 90) * (Math.PI / 180);
+    const endAngle = (angle - 90) * (Math.PI / 180);
+    return {
+      angle,
+      radius,
+      cx,
+      cy,
+      startAngle,
+      endAngle,
+      arcStartX: cx + radius * Math.cos(startAngle),
+      arcStartY: cy + radius * Math.sin(startAngle),
+      arcEndX: cx + radius * Math.cos(endAngle),
+      arcEndY: cy + radius * Math.sin(endAngle),
+      largeArc: angle - minAngle > 180 ? 1 : 0,
+    };
+  }, [normalizedValue, outer, stroke]);
+
+  const indicatorPos = useMemo(() => {
+    const indRad = (angles.angle - 90) * (Math.PI / 180);
+    const innerR = (outer / 2) * 0.55;
+    return {
+      x: angles.cx + innerR * Math.cos(indRad),
+      y: angles.cy + innerR * Math.sin(indRad),
+    };
+  }, [angles.angle, outer, angles.cx, angles.cy]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -99,41 +122,39 @@ export default function Knob({
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      // Reset to default (midpoint)
-      onChange(denormalize(0.5, min, max, logarithmic));
+      onChange(DENORMALIZE(0.5, min, max, logarithmic));
     },
     [min, max, onChange, logarithmic]
   );
 
+  // Consolidated event listener setup
   useEffect(() => {
     if (!isDragging) return;
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragStart.current) return;
       const dy = dragStart.current.y - e.clientY;
       const sensitivity = e.shiftKey ? 0.003 : 0.008;
       const delta = dy * sensitivity;
-      const startNorm = normalize(dragStart.current.value, min, max, logarithmic);
+      const startNorm = NORMALIZE(dragStart.current.value, min, max, logarithmic);
       const newNorm = Math.max(0, Math.min(1, startNorm + delta));
-      onChange(denormalize(newNorm, min, max, logarithmic));
+      onChange(DENORMALIZE(newNorm, min, max, logarithmic));
     };
+
     const handleMouseUp = () => {
       setIsDragging(false);
       setShowTooltip(false);
       dragStart.current = null;
     };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, min, max, onChange, logarithmic]);
-
-  const indicatorAngle = angle;
-  const indRad = (indicatorAngle - 90) * (Math.PI / 180);
-  const innerR = (outer / 2) * 0.55;
-  const indX = cx + innerR * Math.cos(indRad);
-  const indY = cy + innerR * Math.sin(indRad);
 
   return (
     <div className="flex flex-col items-center gap-1 select-none" ref={knobRef}>
@@ -143,7 +164,7 @@ export default function Knob({
             className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-0.5 rounded pointer-events-none whitespace-nowrap z-50 border border-white/10"
             style={{ fontFamily: 'monospace' }}
           >
-            {formatValue(value, unit)}
+            {FORMAT_VALUE(value, unit)}
           </div>
         )}
         <svg
@@ -158,9 +179,9 @@ export default function Knob({
         >
           {/* Track */}
           <circle
-            cx={cx}
-            cy={cy}
-            r={radius}
+            cx={angles.cx}
+            cy={angles.cy}
+            r={angles.radius}
             fill="none"
             stroke="#1a1a2e"
             strokeWidth={stroke}
@@ -168,7 +189,7 @@ export default function Knob({
           {/* Active arc */}
           {normalizedValue > 0 && (
             <path
-              d={`M ${arcStartX} ${arcStartY} A ${radius} ${radius} 0 ${largeArc} 1 ${arcEndX} ${arcEndY}`}
+              d={`M ${angles.arcStartX} ${angles.arcStartY} A ${angles.radius} ${angles.radius} 0 ${angles.largeArc} 1 ${angles.arcEndX} ${angles.arcEndY}`}
               fill="none"
               stroke={color}
               strokeWidth={stroke}
@@ -177,17 +198,17 @@ export default function Knob({
           )}
           {/* Knob body */}
           <circle
-            cx={cx}
-            cy={cy}
+            cx={angles.cx}
+            cy={angles.cy}
             r={(outer / 2) * 0.62}
             fill="url(#knobGrad)"
             stroke="#333355"
             strokeWidth={1}
           />
           {/* Indicator dot */}
-          <circle cx={indX} cy={indY} r={stroke * 0.7} fill={color} />
+          <circle cx={indicatorPos.x} cy={indicatorPos.y} r={stroke * 0.7} fill={color} />
           {/* Center dot */}
-          <circle cx={cx} cy={cy} r={2} fill="#444466" />
+          <circle cx={angles.cx} cy={angles.cy} r={2} fill="#444466" />
           <defs>
             <radialGradient id="knobGrad" cx="40%" cy="35%" r="60%">
               <stop offset="0%" stopColor="#3a3a5c" />
@@ -212,3 +233,5 @@ export default function Knob({
     </div>
   );
 }
+
+export default React.memo(KnobComponent);

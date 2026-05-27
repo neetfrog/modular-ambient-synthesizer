@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
 import Knob from '../components/Knob';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
 interface OutputModuleProps {
   id: string;
 }
 
-export default function OutputModule({ id }: OutputModuleProps) {
+function OutputModuleComponent({ id }: OutputModuleProps) {
   const engine = getAudioEngine();
   const inputGainRef = useRef<GainNode | null>(null);
   const [inputNode, setInputNode] = useState<GainNode | null>(null);
@@ -33,17 +33,24 @@ export default function OutputModule({ id }: OutputModuleProps) {
     const data = new Uint8Array(analyser.frequencyBinCount);
     let frame: number;
     let toggle = false;
+    let lastUpdate = 0;
+    const updateInterval = 16; // ~60fps
+
     const tick = () => {
-      analyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) {
-        const v = (data[i] - 128) / 128;
-        sum += v * v;
+      const now = performance.now();
+      if (now - lastUpdate > updateInterval) {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        toggle = !toggle;
+        if (toggle) setVuLevel(rms);
+        else setVuLevelR(rms * (0.9 + Math.random() * 0.1));
+        lastUpdate = now;
       }
-      const rms = Math.sqrt(sum / data.length);
-      toggle = !toggle;
-      if (toggle) setVuLevel(rms);
-      else setVuLevelR(rms * (0.9 + Math.random() * 0.1));
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -58,12 +65,12 @@ export default function OutputModule({ id }: OutputModuleProps) {
   useEffect(() => {
     if (inputGainRef.current)
       inputGainRef.current.gain.setTargetAtTime(isOn ? volume : 0, engine.ctx.currentTime, 0.05);
-  }, [volume, isOn]);
+  }, [volume, isOn, engine.ctx]);
 
-  const toggleOutput = () => {
+  const toggleOutput = useCallback(() => {
     engine.resume();
     setIsOn((v) => !v);
-  };
+  }, [engine]);
 
   const vuBars = 16;
 
@@ -92,10 +99,13 @@ export default function OutputModule({ id }: OutputModuleProps) {
       </div>
 
       <div className="mb-3">
-        <div className="text-center mb-1" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace', letterSpacing: '0.06em' }}>
+        <div style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace', letterSpacing: '0.06em', textAlign: 'center', marginBottom: 4 }}>
           STEREO VU
         </div>
-        {([['L', vuLevel], ['R', vuLevelR]] as const).map(([ch, level]) => (
+        {([
+          ['L', vuLevel],
+          ['R', vuLevelR],
+        ] as const).map(([ch, level]) => (
           <div key={ch} className="flex items-center gap-1.5 mb-0.5">
             <span style={{ fontSize: 7, color: '#555577', fontFamily: 'monospace', width: 8 }}>{ch}</span>
             <div className="flex gap-0.5 flex-1">
@@ -105,15 +115,16 @@ export default function OutputModule({ id }: OutputModuleProps) {
                 const hot = i >= vuBars * 0.875;
                 const warm = i >= vuBars * 0.7;
                 return (
-                  <div key={i} style={{
-                    flex: 1,
-                    height: 6,
-                    borderRadius: 1,
-                    background: active
-                      ? hot ? '#ef4444' : warm ? '#f97316' : accentColor
-                      : '#1a1a2e',
-                    transition: 'background 0.04s',
-                  }} />
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 6,
+                      borderRadius: 1,
+                      background: active ? (hot ? '#ef4444' : warm ? '#f97316' : accentColor) : '#1a1a2e',
+                      transition: 'background 0.04s',
+                    }}
+                  />
                 );
               })}
             </div>
@@ -125,13 +136,15 @@ export default function OutputModule({ id }: OutputModuleProps) {
         <Knob value={volume} min={0} max={1} onChange={setVolume} label="Volume" unit="%" size="lg" color={accentColor} />
       </div>
 
-      <div className="rounded p-2" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace' }}>INPUTS</div>
-        <div className="flex justify-around">
-          <JackPort id={`${id}_l_in`} moduleId={id} type="input" label="L IN" audioNode={inputNode ?? undefined} />
-          <JackPort id={`${id}_r_in`} moduleId={id} type="input" label="R IN" audioNode={inputNode ?? undefined} />
-        </div>
-      </div>
+      <ModuleIOSection
+        ports={[
+          { id: `${id}_l_in`, moduleId: id, type: 'input', label: 'L IN', audioNode: inputNode ?? undefined },
+          { id: `${id}_r_in`, moduleId: id, type: 'input', label: 'R IN', audioNode: inputNode ?? undefined },
+        ]}
+        title="INPUTS"
+      />
     </ModulePanel>
   );
 }
+
+export default React.memo(OutputModuleComponent);

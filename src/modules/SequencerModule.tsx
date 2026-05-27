@@ -1,19 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
 import Knob from '../components/Knob';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
-const NOTES = [
-  130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94,
-  261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88,
-  523.25, 587.33,
-];
+const NOTES = [130.81, 146.83, 164.81, 174.61, 196.0, 220.0, 246.94, 261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25, 587.33];
 
-const NOTE_NAMES = ['C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4','A4','B4','C5','D5'];
+const NOTE_NAMES = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5'];
 
 // Normalize frequencies to 0-1 range for use as CV modulation signals
-const NOTE_CV = NOTES.map(freq => {
+const NOTE_CV = NOTES.map((freq) => {
   const min = Math.min(...NOTES);
   const max = Math.max(...NOTES);
   return (freq - min) / (max - min);
@@ -23,7 +19,7 @@ interface SequencerModuleProps {
   id: string;
 }
 
-export default function SequencerModule({ id }: SequencerModuleProps) {
+function SequencerModuleComponent({ id }: SequencerModuleProps) {
   const engine = getAudioEngine();
   const cvOutRef = useRef<ConstantSourceNode | null>(null);
   const gateOutRef = useRef<GainNode | null>(null);
@@ -40,7 +36,7 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
 
   useEffect(() => {
     const ctx = engine.ctx;
-    
+
     // Create CV output (control voltage)
     const cv = ctx.createConstantSource();
     cv.offset.value = 220;
@@ -50,7 +46,7 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
     cv.connect(cvDummy);
     cvDummy.connect(ctx.destination);
     cv.start();
-    
+
     // Create gate output (trigger/pulse)
     const gate = ctx.createGain();
     gate.gain.value = 0;
@@ -59,16 +55,26 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
     gateDummy.gain.value = 0;
     gate.connect(gateDummy);
     gateDummy.connect(ctx.destination);
-    
+
     cvOutRef.current = cv;
     gateOutRef.current = gate;
-    
+
     return () => {
-      try { cv.stop(); } catch {}
-      try { cv.disconnect(); } catch {}
-      try { cvDummy.disconnect(); } catch {}
-      try { gate.disconnect(); } catch {}
-      try { gateDummy.disconnect(); } catch {}
+      try {
+        cv.stop();
+      } catch {}
+      try {
+        cv.disconnect();
+      } catch {}
+      try {
+        cvDummy.disconnect();
+      } catch {}
+      try {
+        gate.disconnect();
+      } catch {}
+      try {
+        gateDummy.disconnect();
+      } catch {}
     };
   }, []);
 
@@ -87,7 +93,7 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
       }
     }
     stepRef.current = (step + 1) % STEPS;
-  }, [steps, active]);
+  }, [steps, active, engine.ctx]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -98,16 +104,28 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
     engine.resume();
     const interval = (60 / bpm) * 1000;
     timerRef.current = window.setInterval(tick, interval);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isPlaying, bpm, tick]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isPlaying, bpm, tick, engine]);
 
-  const setStep = (i: number, noteIdx: number) => {
-    setSteps((prev) => prev.map((s, idx) => idx === i ? noteIdx : s));
-  };
+  const setStep = useCallback((i: number, noteIdx: number) => {
+    setSteps((prev) => prev.map((s, idx) => (idx === i ? noteIdx : s)));
+  }, []);
 
-  const toggleActive = (i: number) => {
-    setActive((prev) => prev.map((a, idx) => idx === i ? !a : a));
-  };
+  const toggleActive = useCallback((i: number) => {
+    setActive((prev) => prev.map((a, idx) => (idx === i ? !a : a)));
+  }, []);
+
+  const handleTogglePlay = useCallback(() => {
+    engine.resume();
+    setIsPlaying((v) => !v);
+  }, [engine]);
+
+  const handleReset = useCallback(() => {
+    stepRef.current = 0;
+    setCurrentStep(-1);
+  }, []);
 
   return (
     <ModulePanel title="SEQ-8" subtitle="Step Sequencer" accentColor={accentColor} width={280} badge="SEQ">
@@ -140,11 +158,12 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
                 className="absolute bottom-0 w-full rounded transition-all"
                 style={{
                   height: `${((noteIdx) / 15) * 100}%`,
-                  background: currentStep === i
-                    ? `linear-gradient(to top, ${accentColor}, ${accentColor}88)`
-                    : active[i]
-                    ? `linear-gradient(to top, ${accentColor}66, ${accentColor}33)`
-                    : `linear-gradient(to top, #2a2a4a, #1a1a30)`,
+                  background:
+                    currentStep === i
+                      ? `linear-gradient(to top, ${accentColor}, ${accentColor}88)`
+                      : active[i]
+                      ? `linear-gradient(to top, ${accentColor}66, ${accentColor}33)`
+                      : `linear-gradient(to top, #2a2a4a, #1a1a30)`,
                   boxShadow: currentStep === i ? `0 0 8px ${accentColor}88` : 'none',
                 }}
               />
@@ -156,7 +175,11 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
                 value={noteIdx}
                 onChange={(e) => setStep(i, parseInt(e.target.value))}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                style={{ writingMode: 'vertical-lr', direction: 'rtl', WebkitAppearance: 'slider-vertical' }}
+                style={{
+                  writingMode: 'vertical-lr',
+                  direction: 'rtl',
+                  WebkitAppearance: 'slider-vertical',
+                } as React.CSSProperties}
               />
             </div>
 
@@ -179,7 +202,7 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
       <div className="flex items-center gap-3 mb-3">
         <Knob value={bpm} min={20} max={240} onChange={setBpm} label="BPM" size="sm" color={accentColor} />
         <button
-          onClick={() => { engine.resume(); setIsPlaying((v) => !v); }}
+          onClick={handleTogglePlay}
           className="flex-1 rounded py-2 transition-all font-bold"
           style={{
             fontFamily: 'monospace',
@@ -195,10 +218,7 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
           {isPlaying ? '⏸ STOP' : '▶ PLAY'}
         </button>
         <button
-          onClick={() => {
-            stepRef.current = 0;
-            setCurrentStep(-1);
-          }}
+          onClick={handleReset}
           className="px-3 rounded py-2 transition-all"
           style={{
             fontFamily: 'monospace',
@@ -214,13 +234,15 @@ export default function SequencerModule({ id }: SequencerModuleProps) {
       </div>
 
       {/* Jacks */}
-      <div className="rounded p-2" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace' }}>OUTPUTS</div>
-        <div className="flex justify-around">
-          <JackPort id={`${id}_cv_out`} moduleId={id} type="output" label="CV" audioNode={cvOutRef.current ?? undefined} />
-          <JackPort id={`${id}_gate_out`} moduleId={id} type="output" label="GATE" audioNode={gateOutRef.current ?? undefined} />
-        </div>
-      </div>
+      <ModuleIOSection
+        ports={[
+          { id: `${id}_cv_out`, moduleId: id, type: 'output', label: 'CV', audioNode: cvOutRef.current ?? undefined },
+          { id: `${id}_gate_out`, moduleId: id, type: 'output', label: 'GATE', audioNode: gateOutRef.current ?? undefined },
+        ]}
+        title="OUTPUTS"
+      />
     </ModulePanel>
   );
 }
+
+export default React.memo(SequencerModuleComponent);

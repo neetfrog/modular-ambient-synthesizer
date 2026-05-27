@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
 interface OscilloscopeModuleProps {
   id: string;
 }
 
-export default function OscilloscopeModule({ id }: OscilloscopeModuleProps) {
+function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
   const engine = getAudioEngine();
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -119,13 +119,17 @@ export default function OscilloscopeModule({ id }: OscilloscopeModuleProps) {
     return () => cancelAnimationFrame(animRef.current);
   }, [mode]);
 
+  const handleModeChange = useCallback((m: 'time' | 'freq') => {
+    setMode(m);
+  }, []);
+
   return (
     <ModulePanel title="SCOPE" subtitle="Oscilloscope" accentColor={accentColor} width={205} badge="VIZ">
       <div className="flex gap-1 mb-2">
         {(['time', 'freq'] as const).map((m) => (
           <button
             key={m}
-            onClick={() => setMode(m)}
+            onClick={() => handleModeChange(m)}
             className="flex-1 rounded py-1 text-xs transition-all"
             style={{
               fontFamily: 'monospace',
@@ -166,12 +170,12 @@ export default function OscilloscopeModule({ id }: OscilloscopeModuleProps) {
         />
       </div>
 
-      <div className="rounded p-2" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace' }}>INPUT</div>
-        <div className="flex justify-center">
-          <JackPort id={`${id}_in`} moduleId={id} type="input" label="IN" audioNode={inputNode ?? undefined} />
-        </div>
-      </div>
+      <ModuleIOSection
+        ports={[{ id: `${id}_in`, moduleId: id, type: 'input', label: 'IN', audioNode: inputNode ?? undefined }]}
+        title="INPUT"
+      />
     </ModulePanel>
   );
 }
+
+export default React.memo(OscilloscopeModuleComponent);

@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
 import Knob from '../components/Knob';
-import JackPort from '../components/JackPort';
 import ModulePanel from '../components/ModulePanel';
+import { ModuleIOSection } from '../components/ModuleIOSection';
 
 interface ADSRModuleProps {
   id: string;
 }
 
-export default function ADSRModule({ id }: ADSRModuleProps) {
+function ADSRModuleComponent({ id }: ADSRModuleProps) {
   const engine = getAudioEngine();
   const envGainRef = useRef<GainNode | null>(null);
   const [envNode, setEnvNode] = useState<GainNode | null>(null);
@@ -39,7 +39,7 @@ export default function ADSRModule({ id }: ADSRModuleProps) {
     gain.setValueAtTime(0, now);
     gain.linearRampToValueAtTime(1, now + attack);
     gain.linearRampToValueAtTime(sustain, now + attack + decay);
-  }, [attack, decay, sustain]);
+  }, [attack, decay, sustain, engine]);
 
   const releaseEnvelope = useCallback(() => {
     if (!envGainRef.current) return;
@@ -49,17 +49,23 @@ export default function ADSRModule({ id }: ADSRModuleProps) {
     gain.cancelScheduledValues(now);
     gain.setValueAtTime(gain.value, now);
     gain.linearRampToValueAtTime(0, now + release);
-  }, [release]);
+  }, [release, engine.ctx]);
+
+  // Memoize ADSR path calculation
+  const adsrPath = useMemo(() => {
+    const w = 136,
+      h = 48;
+    const pad = 4;
+    const totalT = attack + decay + 0.5 + release;
+    const scale = (t: number) => (t / totalT) * (w - pad * 2) + pad;
+    const attackX = scale(attack);
+    const decayX = scale(attack + decay);
+    const sustainX = scale(attack + decay + 0.5);
+    const sustainY = pad + (1 - sustain) * (h - pad * 2);
+    return `M ${pad} ${h - pad} L ${attackX} ${pad} L ${decayX} ${sustainY} L ${sustainX} ${sustainY} L ${w - pad} ${h - pad}`;
+  }, [attack, decay, sustain, release]);
 
   const w = 136, h = 48;
-  const pad = 4;
-  const totalT = attack + decay + 0.5 + release;
-  const scale = (t: number) => (t / totalT) * (w - pad * 2) + pad;
-  const attackX = scale(attack);
-  const decayX = scale(attack + decay);
-  const sustainX = scale(attack + decay + 0.5);
-  const sustainY = pad + (1 - sustain) * (h - pad * 2);
-  const path = `M ${pad} ${h - pad} L ${attackX} ${pad} L ${decayX} ${sustainY} L ${sustainX} ${sustainY} L ${w - pad} ${h - pad}`;
 
   return (
     <ModulePanel title="ADSR" subtitle="Envelope Generator" accentColor={accentColor} width={160} badge="ENV">
@@ -71,16 +77,46 @@ export default function ADSRModule({ id }: ADSRModuleProps) {
               <stop offset="100%" stopColor={accentColor} stopOpacity="0.05" />
             </linearGradient>
           </defs>
-          <path d={`${path} Z`} fill={`url(#adsr-fill-${id})`} />
-          <path d={path} fill="none" stroke={accentColor} strokeWidth={1.5} strokeLinejoin="round" />
+          <path d={`${adsrPath} Z`} fill={`url(#adsr-fill-${id})`} />
+          <path d={adsrPath} fill="none" stroke={accentColor} strokeWidth={1.5} strokeLinejoin="round" />
         </svg>
       </div>
 
       <div className="grid grid-cols-2 gap-1 mb-2">
-        <Knob value={attack} min={0.001} max={4} onChange={setAttack} label="Attack" unit="s" size="sm" color={accentColor} logarithmic />
-        <Knob value={decay} min={0.001} max={4} onChange={setDecay} label="Decay" unit="s" size="sm" color={accentColor} logarithmic />
+        <Knob
+          value={attack}
+          min={0.001}
+          max={4}
+          onChange={setAttack}
+          label="Attack"
+          unit="s"
+          size="sm"
+          color={accentColor}
+          logarithmic
+        />
+        <Knob
+          value={decay}
+          min={0.001}
+          max={4}
+          onChange={setDecay}
+          label="Decay"
+          unit="s"
+          size="sm"
+          color={accentColor}
+          logarithmic
+        />
         <Knob value={sustain} min={0} max={1} onChange={setSustain} label="Sustain" unit="%" size="sm" color={accentColor} />
-        <Knob value={release} min={0.001} max={8} onChange={setRelease} label="Release" unit="s" size="sm" color={accentColor} logarithmic />
+        <Knob
+          value={release}
+          min={0.001}
+          max={8}
+          onChange={setRelease}
+          label="Release"
+          unit="s"
+          size="sm"
+          color={accentColor}
+          logarithmic
+        />
       </div>
 
       <button
@@ -94,20 +130,33 @@ export default function ADSRModule({ id }: ADSRModuleProps) {
           letterSpacing: '0.1em',
           cursor: 'pointer',
         }}
-        onMouseDown={() => { setIsGate(true); triggerEnvelope(); }}
-        onMouseUp={() => { setIsGate(false); releaseEnvelope(); }}
-        onMouseLeave={() => { if (isGate) { setIsGate(false); releaseEnvelope(); } }}
+        onMouseDown={() => {
+          setIsGate(true);
+          triggerEnvelope();
+        }}
+        onMouseUp={() => {
+          setIsGate(false);
+          releaseEnvelope();
+        }}
+        onMouseLeave={() => {
+          if (isGate) {
+            setIsGate(false);
+            releaseEnvelope();
+          }
+        }}
       >
         ▶ GATE
       </button>
 
-      <div className="rounded p-2" style={{ background: '#08081a', border: '1px solid #1a1a30' }}>
-        <div className="text-center mb-1.5" style={{ fontSize: 7, color: '#444466', fontFamily: 'monospace' }}>OUTPUTS</div>
-        <div className="flex justify-around">
-          <JackPort id={`${id}_env_out`} moduleId={id} type="output" label="ENV" audioNode={envNode ?? undefined} />
-          <JackPort id={`${id}_gate_in`} moduleId={id} type="input" label="GATE" />
-        </div>
-      </div>
+      <ModuleIOSection
+        ports={[
+          { id: `${id}_env_out`, moduleId: id, type: 'output', label: 'ENV', audioNode: envNode ?? undefined },
+          { id: `${id}_gate_in`, moduleId: id, type: 'input', label: 'GATE' },
+        ]}
+        title="OUTPUTS"
+      />
     </ModulePanel>
   );
 }
+
+export default React.memo(ADSRModuleComponent);
