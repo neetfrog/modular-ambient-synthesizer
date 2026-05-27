@@ -54,12 +54,13 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
   const [isRunning, setIsRunning] = useState(true);
   const [voiceCount, setVoiceCount] = useState(1);
   const [activeVoices, setActiveVoices] = useState(0);
+  const [keyboardConnected, setKeyboardConnected] = useState(false);
   
   // Waveform visualization
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
-  // Initialize mono/poly oscillator
+  // Initialize mono/poly oscillator (only on mode switch, not on voice count change)
   useEffect(() => {
     const ctx = engine.ctx;
     
@@ -102,11 +103,11 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
         analyser.disconnect();
       };
     } else {
-      // Polyphonic mode - voice pool
+      // Polyphonic mode - create max voices upfront (16)
       const outputGain = ctx.createGain();
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
-      outputGain.gain.value = 0.2; // Lower gain for multiple voices
+      outputGain.gain.value = 0.35; // Match mono mode output level
       
       const fmGain = ctx.createGain();
       fmGain.gain.value = 220;
@@ -114,8 +115,9 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
       const pmGain = ctx.createGain();
       pmGain.gain.value = 200;
       
+      // Always create 16 voices, voiceCount just controls how many are available
       const voices: Voice[] = [];
-      for (let i = 0; i < voiceCount; i++) {
+      for (let i = 0; i < 16; i++) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         
@@ -131,8 +133,10 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
         // Tap analyser from first voice for visualization
         if (i === 0) {
           osc.connect(analyser);
+          gain.gain.value = 1.0; // First voice is always active in poly mode (1.0 * 0.35 = 0.35 to match mono)
+        } else {
+          gain.gain.value = 0; // Other voices start silent, allocated on demand
         }
-        gain.gain.value = 0;
         gain.connect(outputGain);
         osc.start();
         
@@ -165,23 +169,36 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
         analyser.disconnect();
       };
     }
-  }, [voiceCount, engine]);
+  }, [voiceCount === 1 ? 1 : 0, engine]);
 
   useEffect(() => {
-    if (!oscRef.current && voiceCount === 1) return;
-    if (voiceCount > 1) return; // Handled by polyphonic frequency allocation
-    
     const now = engine.ctx.currentTime;
     const clampedFreq = Math.max(freq, 20);
     const rampTime = 0.015; // 15ms linear ramp for smooth frequency changes
     
-    oscRef.current!.frequency.cancelScheduledValues(now);
-    oscRef.current!.frequency.setValueAtTime(oscRef.current!.frequency.value, now);
-    oscRef.current!.frequency.linearRampToValueAtTime(clampedFreq, now + rampTime);
-    
-    fmGainRef.current!.gain.cancelScheduledValues(now);
-    fmGainRef.current!.gain.setValueAtTime(fmGainRef.current!.gain.value, now);
-    fmGainRef.current!.gain.linearRampToValueAtTime(clampedFreq * 2, now + rampTime);
+    if (voiceCount === 1) {
+      // Mono mode - update single oscillator
+      if (!oscRef.current) return;
+      oscRef.current.frequency.cancelScheduledValues(now);
+      oscRef.current.frequency.setValueAtTime(oscRef.current.frequency.value, now);
+      oscRef.current.frequency.linearRampToValueAtTime(clampedFreq, now + rampTime);
+      
+      fmGainRef.current!.gain.cancelScheduledValues(now);
+      fmGainRef.current!.gain.setValueAtTime(fmGainRef.current!.gain.value, now);
+      fmGainRef.current!.gain.linearRampToValueAtTime(clampedFreq * 2, now + rampTime);
+    } else {
+      // Poly mode - update voice[0] (base tone controlled by knob)
+      const voice0 = voicesRef.current[0];
+      if (!voice0) return;
+      
+      voice0.osc.frequency.cancelScheduledValues(now);
+      voice0.osc.frequency.setValueAtTime(voice0.osc.frequency.value, now);
+      voice0.osc.frequency.linearRampToValueAtTime(clampedFreq, now + rampTime);
+      
+      fmGainRef.current!.gain.cancelScheduledValues(now);
+      fmGainRef.current!.gain.setValueAtTime(fmGainRef.current!.gain.value, now);
+      fmGainRef.current!.gain.linearRampToValueAtTime(clampedFreq * 2, now + rampTime);
+    }
   }, [freq, engine, voiceCount]);
 
   useEffect(() => {
@@ -230,7 +247,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     } else {
       if (!outputGainRef.current) return;
       const now = engine.ctx.currentTime;
-      const targetValue = isRunning ? 0.2 : 0;
+      const targetValue = isRunning ? 0.35 : 0;
       const rampTime = 0.02;
       
       outputGainRef.current.gain.cancelScheduledValues(now);
@@ -249,13 +266,34 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
       return existingVoice;
     }
     
-    // Find unused or quietest voice
-    let targetVoice = voices[0];
-    for (const voice of voices) {
+    // Only search within available voices (based on voiceCount knob)
+    // Skip voice 0 in poly mode - it's reserved as the base oscillator
+    const startIndex = voiceCount === 1 ? 0 : 1;
+    const availableVoices = voices.slice(startIndex, voiceCount);
+    
+    // Find unused voice, or steal the quietest one if all are in use
+    let targetVoice = availableVoices[0];
+    let foundUnused = false;
+    let quietestGain = availableVoices[0].gain.gain.value;
+    
+    for (const voice of availableVoices) {
       if (voice.note === null) {
         targetVoice = voice;
+        foundUnused = true;
         break;
       }
+      // Track quietest voice in case we need to steal
+      const currentGain = voice.gain.gain.value;
+      if (currentGain < quietestGain) {
+        quietestGain = currentGain;
+        targetVoice = voice;
+      }
+    }
+    
+    // If stealing a voice from another note, release that note
+    if (!foundUnused && targetVoice.note !== null) {
+      const prevNote = targetVoice.note;
+      activeNotesRef.current.delete(prevNote);
     }
     
     targetVoice.note = note;
@@ -272,7 +310,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     
     setActiveVoices(activeNotesRef.current.size);
     return targetVoice;
-  }, [engine]);
+  }, [engine, voiceCount]);
 
   // Release voice for polyphonic playback
   const releaseNote = useCallback((note: string) => {
@@ -290,15 +328,18 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     setActiveVoices(activeNotesRef.current.size);
   }, []);
 
-  // Listen for note events from keyboard (only in poly mode)
+  // Listen for note events from keyboard
   useEffect(() => {
-    if (voiceCount === 1) return;
-    
     const handleNoteEvent = (event: { type: 'noteOn' | 'noteOff'; note: string; frequency: number }) => {
-      if (event.type === 'noteOn') {
-        allocateVoice(event.note, event.frequency);
-      } else {
-        releaseNote(event.note);
+      setKeyboardConnected(true);
+      
+      // Only allocate voices when in poly mode
+      if (voiceCount > 1) {
+        if (event.type === 'noteOn') {
+          allocateVoice(event.note, event.frequency);
+        } else {
+          releaseNote(event.note);
+        }
       }
     };
     
@@ -356,7 +397,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     
     draw();
     return () => cancelAnimationFrame(animationId);
-  }, [accentColor]);
+  }, [accentColor, voiceCount]);
 
   const handleWaveformChange = useCallback((w: WaveformType) => {
     setWaveform(w);
@@ -375,11 +416,30 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     setIsRunning((v) => !v);
   }, [engine]);
 
-  const handleVoiceCountChange = useCallback((value: number) => {
-    setVoiceCount(value);
-    activeNotesRef.current.clear();
-    setActiveVoices(0);
+  const handleVoiceCountChange = useCallback((newCount: number) => {
+    setVoiceCount(newCount);
   }, []);
+
+  // Handle voice release when voiceCount decreases
+  useEffect(() => {
+    if (voiceCount === 1 || voicesRef.current.length === 0) return;
+    
+    // Release any voices beyond the current limit
+    const voices = voicesRef.current.slice(voiceCount);
+    if (voices.some(v => v.note !== null)) {
+      const now = engine.ctx.currentTime;
+      voices.forEach(voice => {
+        if (voice.note !== null) {
+          activeNotesRef.current.delete(voice.note);
+          voice.note = null;
+          voice.gain.gain.cancelScheduledValues(now);
+          voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+          voice.gain.gain.linearRampToValueAtTime(0, now + 0.05);
+        }
+      });
+      setActiveVoices(activeNotesRef.current.size);
+    }
+  }, [voiceCount, engine]);
 
   const displayFreq = useMemo(() => 
     freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`,
@@ -458,9 +518,11 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
         </div>
       )}
 
-      <div className="flex gap-2 justify-around mb-3">
-        <Knob value={voiceCount} min={1} max={16} onChange={handleVoiceCountChange} label="Voices" size="md" color={accentColor} />
-      </div>
+      {(keyboardConnected || voiceCount > 1) && (
+        <div className="flex gap-2 justify-around mb-3">
+          <Knob value={voiceCount} min={1} max={16} onChange={handleVoiceCountChange} label="Voices" size="md" color={accentColor} />
+        </div>
+      )}
 
       <div className="flex justify-center mb-3">
         <button
