@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePatchStore } from './store/synthStore';
 import PatchBay from './components/PatchBay';
+import JackCircles from './components/JackCircles';
 import PatchConnectionManager from './components/PatchConnectionManager';
 import VCOModule from './modules/VCOModule';
 import LFOModule from './modules/LFOModule';
@@ -17,6 +18,7 @@ import SequencerModule from './modules/SequencerModule';
 import ClockDividerModule from './modules/ClockDividerModule';
 import AttenuatorModule from './modules/AttenuatorModule';
 import MultModule from './modules/MultModule';
+import KeyboardModule from './modules/KeyboardModule';
 import { getAudioEngine } from './audio/AudioEngine';
 
 interface ModuleInstance {
@@ -157,6 +159,55 @@ const PRESETS: Preset[] = [
       { id: 'c3', fromJackId: 'mult1_out2', toJackId: 'output1_r_in', color: '#fb923c' },
     ],
   },
+  {
+    name: 'CHIPTUNE',
+    description: 'Rich 8-bit melody: dual VCOs filtered with LFO wobble (click sequencer steps)',
+    emoji: '8️⃣',
+    modules: [
+      { id: 'seq1', type: 'seq', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 260, y: 24 },
+      { id: 'vco2', type: 'vco2', x: 260, y: 260 },
+      { id: 'mixer1', type: 'mixer', x: 500, y: 24 },
+      { id: 'lfo1', type: 'lfo', x: 500, y: 260 },
+      { id: 'vcf1', type: 'vcf', x: 24, y: 320 },
+      { id: 'adsr1', type: 'adsr', x: 260, y: 320 },
+      { id: 'vca1', type: 'vca', x: 500, y: 320 },
+      { id: 'output1', type: 'output', x: 24, y: 560 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'seq1_cv_out', toJackId: 'vco1_fm_in', color: '#ff4d6d' },
+      { id: 'c2', fromJackId: 'seq1_cv_out', toJackId: 'vco2_fm_in', color: '#ff4d6d' },
+      { id: 'c3', fromJackId: 'seq1_gate_out', toJackId: 'adsr1_gate_in', color: '#fbbf24' },
+      { id: 'c4', fromJackId: 'vco1_out', toJackId: 'mixer1_ch1_in', color: '#ff9500' },
+      { id: 'c5', fromJackId: 'vco2_out', toJackId: 'mixer1_ch2_in', color: '#fb923c' },
+      { id: 'c6', fromJackId: 'mixer1_out', toJackId: 'vcf1_in', color: '#fbbf24' },
+      { id: 'c7', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
+      { id: 'c8', fromJackId: 'vcf1_out', toJackId: 'vca1_in', color: '#4ade80' },
+      { id: 'c9', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
+      { id: 'c10', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c11', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+    ],
+  },
+  {
+    name: 'KEYBOARD',
+    description: 'Keyboard plays notes with ADSR envelope shaping',
+    emoji: '⌨️',
+    modules: [
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 260, y: 24 },
+      { id: 'adsr1', type: 'adsr', x: 500, y: 24 },
+      { id: 'vca1', type: 'vca', x: 24, y: 320 },
+      { id: 'output1', type: 'output', x: 260, y: 320 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'keyboard1_gate_out', toJackId: 'adsr1_gate_in', color: '#fbbf24' },
+      { id: 'c3', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#ff9500' },
+      { id: 'c4', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
+      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c6', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+    ],
+  },
 ];
 
 function renderModule(mod: ModuleInstance) {
@@ -177,6 +228,7 @@ function renderModule(mod: ModuleInstance) {
     case 'clock': return <ClockDividerModule id={mod.id} />;
     case 'atten': return <AttenuatorModule id={mod.id} />;
     case 'mult': return <MultModule id={mod.id} />;
+    case 'keyboard': return <KeyboardModule id={mod.id} />;
     default: return null;
   }
 }
@@ -197,6 +249,7 @@ const ADD_OPTIONS = [
   { type: 'clock', label: 'Clock Divider', color: '#fbbf24' },
   { type: 'atten', label: 'Attenuator', color: '#60a5fa' },
   { type: 'mult', label: 'Mult Splitter', color: '#f472b6' },
+  { type: 'keyboard', label: 'Keyboard', color: '#38bdf8' },
 ];
 
 export default function App() {
@@ -228,17 +281,77 @@ export default function App() {
 
   useEffect(() => {
     if (!dragging) return;
+    
+    const MODULE_WIDTH = 200;
+    const MODULE_HEIGHT = 350;
+    const PADDING = 20;
+    
+    const checkCollision = (rect1: any, rect2: any) => {
+      return !(
+        rect1.x + rect1.w + PADDING < rect2.x ||
+        rect2.x + rect2.w + PADDING < rect1.x ||
+        rect1.y + rect1.h + PADDING < rect2.y ||
+        rect2.y + rect2.h + PADDING < rect1.y
+      );
+    };
+    
     const handleMove = (e: MouseEvent) => {
       const dx = e.clientX - dragging.startX;
       const dy = e.clientY - dragging.startY;
-      setModules((prev) =>
-        prev.map((m) =>
-          m.id === dragging.id
-            ? { ...m, x: Math.max(0, dragging.origX + dx), y: Math.max(0, dragging.origY + dy) }
-            : m
-        )
-      );
+      
+      setModules((prev) => {
+        const originalModule = prev.find((m) => m.id === dragging.id);
+        if (!originalModule) return prev;
+        
+        let newX = Math.max(0, dragging.origX + dx);
+        let newY = Math.max(0, dragging.origY + dy);
+        
+        // Start with dragged module at new position
+        let modules = prev.map((m) =>
+          m.id === dragging.id ? { ...m, x: newX, y: newY } : m
+        );
+        
+        // Iteratively resolve collisions until stable
+        let collisionsFound = true;
+        let iterations = 0;
+        while (collisionsFound && iterations < 10) {
+          collisionsFound = false;
+          iterations++;
+          
+          modules = modules.map((mod) => {
+            if (mod.id === dragging.id) return mod; // Don't move the dragged module
+            
+            let currentX = mod.x;
+            let currentY = mod.y;
+            
+            // Check collision with all other modules
+            for (const other of modules) {
+              if (other.id === mod.id) continue;
+              
+              const modRect = { x: currentX, y: currentY, w: MODULE_WIDTH, h: MODULE_HEIGHT };
+              const otherRect = { x: other.x, y: other.y, w: MODULE_WIDTH, h: MODULE_HEIGHT };
+              
+              if (checkCollision(modRect, otherRect)) {
+                collisionsFound = true;
+                // Push away from the other module
+                const dx = currentX + MODULE_WIDTH / 2 - (other.x + MODULE_WIDTH / 2);
+                const dy = currentY + MODULE_HEIGHT / 2 - (other.y + MODULE_HEIGHT / 2);
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const pushDist = 15;
+                
+                currentX = Math.max(0, currentX + (dx / dist) * pushDist);
+                currentY = Math.max(0, currentY + (dy / dist) * pushDist);
+              }
+            }
+            
+            return { ...mod, x: currentX, y: currentY };
+          });
+        }
+        
+        return modules;
+      });
     };
+    
     const handleUp = () => setDragging(null);
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
@@ -276,6 +389,20 @@ export default function App() {
     if (draggingFrom) cancelDrag();
     setShowAddMenu(false);
     setShowPresetMenu(false);
+  };
+
+  const alignModules = () => {
+    const COLS = 3;
+    const SPACING_X = 250;
+    const SPACING_Y = 380;
+    
+    setModules((prev) =>
+      prev.map((mod, idx) => ({
+        ...mod,
+        x: (idx % COLS) * SPACING_X,
+        y: Math.floor(idx / COLS) * SPACING_Y,
+      }))
+    );
   };
 
   // Canvas size
@@ -594,6 +721,24 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* Align modules button */}
+          <button
+            onClick={alignModules}
+            className="px-4 max-sm:px-2 py-1.5 max-sm:py-0.5 rounded transition-all text-sm max-sm:text-xs"
+            style={{
+              fontFamily: 'monospace',
+              fontSize: 10,
+              letterSpacing: '0.1em',
+              background: '#0a0a18',
+              border: '1px solid #2a2a4a',
+              color: '#666688',
+              cursor: 'pointer',
+            }}
+          >
+            <span className="max-sm:hidden">⊞ ALIGN</span>
+            <span className="sm:hidden">⊞</span>
+          </button>
         </div>
       </div>
 
@@ -701,6 +846,7 @@ export default function App() {
 
       {/* Patch cables SVG overlay */}
       <PatchBay />
+      <JackCircles />
       <PatchConnectionManager />
 
       <style>{`
@@ -712,28 +858,6 @@ export default function App() {
         input[type=range] { -webkit-appearance: none; appearance: none; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; }
         button { outline: none; }
-        
-        @media (max-width: 640px) {
-          .synth-modules-container {
-            display: flex !important;
-            flex-direction: column;
-            gap: 12px;
-            padding: 12px;
-            width: 100% !important;
-            min-width: 100% !important;
-            min-height: auto !important;
-            position: static !important;
-          }
-          
-          .synth-module-wrapper {
-            position: static !important;
-            left: auto !important;
-            top: auto !important;
-            z-index: 10 !important;
-            width: 100% !important;
-            max-width: calc(100vw - 24px) !important;
-          }
-        }
       `}</style>
     </div>
   );

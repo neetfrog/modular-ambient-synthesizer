@@ -107,20 +107,23 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     
     const analyser = gateAnalyserRef.current;
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    const threshold = 60; // Higher threshold to avoid re-triggering on continuous signals
-    let stableCount = 0; // Debounce: require 3 consecutive frames of same state
+    const threshold = 100; // Detect when signal crosses this level (0-255 range)
+    let stableCount = 0;
     let lastStableState = false;
     
     const checkGateSignal = () => {
-      analyser.getByteFrequencyData(dataArray);
+      // Use time-domain data to detect DC levels (keyboard gate signal)
+      analyser.getByteTimeDomainData(dataArray);
       
-      // Calculate average energy across frequency bins
+      // Calculate average amplitude across time-domain samples
       let sum = 0;
       for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i];
+        // Center around 128 (DC bias) and measure deviation
+        const centered = Math.abs(dataArray[i] - 128);
+        sum += centered;
       }
       const average = sum / dataArray.length;
-      const hasGate = average > threshold;
+      const hasGate = average > threshold / 2; // Adjusted threshold for time-domain
       
       // Debounce: require signal to be stable for 3 frames before triggering
       if (hasGate === lastStableState) {

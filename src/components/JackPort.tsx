@@ -65,21 +65,12 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize, { passive: true });
 
-    // Continuous RAF polling to track module movement
-    let lastUpdate = performance.now();
-    const updateInterval = 16; // ~60fps
-    const rafId = requestAnimationFrame(function checkPosition() {
-      const now = performance.now();
-      if (now - lastUpdate >= updateInterval) {
-        updatePos();
-        lastUpdate = now;
-      }
-      requestAnimationFrame(checkPosition);
-    });
+    // Throttled interval polling instead of continuous RAF (reduces main thread blocking)
+    const intervalId = setInterval(updatePos, 100); // Update every 100ms instead of 16ms
 
     return () => {
       clearTimeout(timeoutId);
-      cancelAnimationFrame(rafId);
+      clearInterval(intervalId);
       observer.disconnect();
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);

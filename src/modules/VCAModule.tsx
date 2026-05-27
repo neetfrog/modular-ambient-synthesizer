@@ -10,29 +10,41 @@ interface VCAModuleProps {
 
 function VCAModuleComponent({ id }: VCAModuleProps) {
   const engine = getAudioEngine();
-  const gainRef = useRef<GainNode | null>(null);
-  const cvGainRef = useRef<GainNode | null>(null);
+  const inputGainRef = useRef<GainNode | null>(null);
+  const levelGainRef = useRef<GainNode | null>(null);
+  const gateGainRef = useRef<GainNode | null>(null);
   const [nodes, setNodes] = useState<{ gain: GainNode; cv: GainNode } | null>(null);
 
-  const [level, setLevel] = useState(0.7);
+  const [level, setLevel] = useState(0.5); // Start at 50% level
   const accentColor = '#f472b6';
   const [vu, setVu] = useState(0);
 
   useEffect(() => {
     const ctx = engine.ctx;
-    const gain = ctx.createGain();
-    const cvGain = ctx.createGain();
-    gain.gain.value = 0.5; // Reduce max output gain for headroom
-    cvGain.gain.value = 1;
-    cvGain.connect(gain.gain);
-    gainRef.current = gain;
-    cvGainRef.current = cvGain;
-    setNodes({ gain, cv: cvGain });
+    // Three stage VCA: input → level → gate
+    const inputGain = ctx.createGain();
+    inputGain.gain.value = 1;
+    
+    const levelGain = ctx.createGain();
+    levelGain.gain.value = 0.5;
+    
+    const gateGain = ctx.createGain();
+    gateGain.gain.value = 0; // Start at 0, will be modulated by keyboard gate CV
+    
+    // Chain: input → level → gate → output
+    inputGain.connect(levelGain);
+    levelGain.connect(gateGain);
+    
+    inputGainRef.current = inputGain;
+    levelGainRef.current = levelGain;
+    gateGainRef.current = gateGain;
+    // Expose gateGain as both the main gain (for output) and cv parameter target
+    setNodes({ gain: gateGain, cv: gateGain });
 
-    // VU analyser - throttled to 30fps
+    // VU analyser on gate output
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
-    gain.connect(analyser);
+    gateGain.connect(analyser);
     const data = new Uint8Array(analyser.frequencyBinCount);
     let frame: number;
     let lastUpdate = 0;
@@ -57,13 +69,17 @@ function VCAModuleComponent({ id }: VCAModuleProps) {
     return () => {
       cancelAnimationFrame(frame);
       analyser.disconnect();
-      gain.disconnect();
-      cvGain.disconnect();
+      inputGain.disconnect();
+      levelGain.disconnect();
+      gateGain.disconnect();
     };
   }, []);
 
   useEffect(() => {
-    if (gainRef.current) gainRef.current.gain.setTargetAtTime(level, engine.ctx.currentTime, 0.02);
+    if (levelGainRef.current) {
+      const now = engine.ctx.currentTime;
+      levelGainRef.current.gain.setTargetAtTime(level, now, 0.02);
+    }
   }, [level, engine.ctx]);
 
   const vuBars = 12;
@@ -103,9 +119,9 @@ function VCAModuleComponent({ id }: VCAModuleProps) {
 
       <ModuleIOSection
         ports={[
-          { id: `${id}_in`, moduleId: id, type: 'input', label: 'IN', audioNode: nodes?.gain },
-          { id: `${id}_cv_in`, moduleId: id, type: 'input', label: 'CV', audioNode: nodes?.cv },
-          { id: `${id}_out`, moduleId: id, type: 'output', label: 'OUT', audioNode: nodes?.gain },
+          { id: `${id}_in`, moduleId: id, type: 'input', label: 'IN', audioNode: inputGainRef.current! },
+          { id: `${id}_cv_in`, moduleId: id, type: 'input', label: 'CV', audioParam: gateGainRef.current?.gain },
+          { id: `${id}_out`, moduleId: id, type: 'output', label: 'OUT', audioNode: gateGainRef.current! },
         ]}
         title="I/O"
       />

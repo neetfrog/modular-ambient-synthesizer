@@ -53,8 +53,8 @@ function PatchConnectionManagerComponent() {
         const fromJack = jacks[cable.fromJackId];
         const toJack = jacks[cable.toJackId];
         
-        // Only connect if both jacks are registered and have audio nodes
-        if (fromJack?.audioNode && toJack?.audioNode) {
+        // Connect if fromJack has audioNode AND toJack has audioNode or audioParam
+        if (fromJack?.audioNode && (toJack?.audioNode || toJack?.audioParam)) {
           syncCable(cable.fromJackId, cable.toJackId, true);
           connectedRef.current[cable.id] = { fromJackId: cable.fromJackId, toJackId: cable.toJackId };
         }

@@ -60,7 +60,7 @@ function PatchBayComponent() {
   return (
     <svg
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 1000, width: '100vw', height: '100vh' }}
+      style={{ zIndex: 60, width: '100vw', height: '100vh' }}
     >
       <defs>
         {cables.map((cable) => (
@@ -125,9 +125,7 @@ function PatchBayComponent() {
                 removeCable(cable.id);
               }}
             />
-            {/* Connector caps */}
-            <circle cx={fromJack.x} cy={fromJack.y} r={4} fill={cable.color} opacity={0.9} />
-            <circle cx={toJack.x} cy={toJack.y} r={4} fill={cable.color} opacity={0.9} />
+            {/* Connector caps are now rendered in separate JackCircles overlay */}
           </g>
         );
       })}

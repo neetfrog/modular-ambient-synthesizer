@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { audioDebug } from '../audio/AudioDebug';
 import Knob from '../components/Knob';
 import ModulePanel from '../components/ModulePanel';
 import { ModuleButton } from '../components/ModuleButton';
@@ -26,6 +27,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
   const gainRef = useRef<GainNode | null>(null);
   const fmGainRef = useRef<GainNode | null>(null);
   const pmGainRef = useRef<GainNode | null>(null);
+  const detuneRef = useRef<number>(0);
   const [nodes, setNodes] = useState<{ out: GainNode; fmIn: GainNode; pmIn: GainNode } | null>(null);
 
   const [freq, setFreq] = useState(110);
@@ -56,6 +58,8 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     fmGainRef.current = fmGain;
     pmGainRef.current = pmGain;
     setNodes({ out: gain, fmIn: fmGain, pmIn: pmGain });
+    
+    audioDebug.logNodeCreation('OscillatorNode', id);
 
     return () => {
       try {
@@ -65,33 +69,71 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
       gain.disconnect();
       fmGain.disconnect();
       pmGain.disconnect();
+      audioDebug.logNodeDestruction('OscillatorNode', id);
     };
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     if (oscRef.current) {
-      oscRef.current.frequency.setTargetAtTime(freq, engine.ctx.currentTime, 0.01);
-      if (fmGainRef.current) fmGainRef.current.gain.value = freq * 2;
+      const now = engine.ctx.currentTime;
+      try {
+        // Cancel any pending ramps and schedule new value
+        oscRef.current.frequency.cancelScheduledValues(now);
+        oscRef.current.frequency.setValueAtTime(oscRef.current.frequency.value, now);
+        // Ramp over 50ms for smooth changes
+        oscRef.current.frequency.exponentialRampToValueAtTime(Math.max(freq, 20), now + 0.05);
+        
+        fmGainRef.current.gain.cancelScheduledValues(now);
+        fmGainRef.current.gain.setValueAtTime(fmGainRef.current.gain.value, now);
+        fmGainRef.current.gain.exponentialRampToValueAtTime(freq * 2, now + 0.05);
+      } catch (e) {
+        // Fallback to direct value if ramp fails
+        oscRef.current.frequency.value = Math.max(freq, 20);
+        if (fmGainRef.current) fmGainRef.current.gain.value = freq * 2;
+      }
     }
   }, [freq, engine.ctx]);
 
   useEffect(() => {
-    if (oscRef.current) oscRef.current.detune.value = detune;
-  }, [detune]);
+    if (oscRef.current && detuneRef.current !== detune) {
+      const now = engine.ctx.currentTime;
+      try {
+        oscRef.current.detune.cancelScheduledValues(now);
+        oscRef.current.detune.setValueAtTime(oscRef.current.detune.value, now);
+        oscRef.current.detune.linearRampToValueAtTime(detune, now + 0.05);
+        detuneRef.current = detune;
+      } catch (e) {
+        oscRef.current.detune.value = detune;
+      }
+    }
+  }, [detune, engine.ctx]);
 
   useEffect(() => {
-    if (oscRef.current) oscRef.current.type = waveform;
+    if (oscRef.current) {
+      oscRef.current.type = waveform;
+      audioDebug.logParamChange('waveform', 0); // 0 is placeholder
+    }
   }, [waveform]);
 
   useEffect(() => {
-    if (gainRef.current)
-      gainRef.current.gain.setTargetAtTime(isRunning ? 1 : 0, engine.ctx.currentTime, 0.01);
+    if (gainRef.current) {
+      const now = engine.ctx.currentTime;
+      const targetValue = isRunning ? 1 : 0;
+      try {
+        // Cancel pending ramps and set current value first
+        gainRef.current.gain.cancelScheduledValues(now);
+        gainRef.current.gain.setValueAtTime(gainRef.current.gain.value, now);
+        gainRef.current.gain.linearRampToValueAtTime(targetValue, now + 0.05);
+      } catch (e) {
+        gainRef.current.gain.value = targetValue;
+      }
+    }
   }, [isRunning, engine.ctx]);
 
   const handleToggle = useCallback(() => {
     engine.resume();
     setIsRunning((v) => !v);
-  }, []);
+  }, [engine]);
 
   const displayFreq = freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`;
 
