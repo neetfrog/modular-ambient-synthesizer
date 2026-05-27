@@ -55,46 +55,43 @@ export const usePatchStore = create<PatchStore>((set, get) => ({
 
   completePatch: (toJackId) => {
     const { draggingFrom, jacks, cables, nextColor } = get();
+    
+    // Validate drag
     if (!draggingFrom || draggingFrom === toJackId) {
       set({ draggingFrom: null });
       return;
     }
-    const from = jacks[draggingFrom];
-    const to = jacks[toJackId];
-    if (!from || !to) {
+    
+    const fromJack = jacks[draggingFrom];
+    const toJack = jacks[toJackId];
+    
+    // Validate both jacks exist and are different types
+    if (!fromJack || !toJack || fromJack.type === toJack.type) {
       set({ draggingFrom: null });
       return;
     }
-    // Prevent output→output or input→input
-    if (from.type === to.type) {
-      set({ draggingFrom: null });
-      return;
-    }
-    // Ensure output→input order
-    const outputJack = from.type === 'output' ? from : to;
-    const inputJack = from.type === 'input' ? from : to;
+    
+    // Normalize to output→input order
+    const [output, input] = fromJack.type === 'output' 
+      ? [fromJack, toJack] 
+      : [toJack, fromJack];
 
-    // Check if cable already exists
-    const exists = cables.some(
-      (c) => c.fromJackId === outputJack.id && c.toJackId === inputJack.id
-    );
-    if (exists) {
+    // Skip if cable already exists
+    if (cables.some((c) => c.fromJackId === output.id && c.toJackId === input.id)) {
       set({ draggingFrom: null });
       return;
     }
 
-    // Remove existing cables on that input
-    const filteredCables = cables.filter((c) => c.toJackId !== inputJack.id);
-
+    // Create new cable (input can only have one source, output can fan out)
     const newCable: PatchCable = {
       id: `cable_${Date.now()}`,
-      fromJackId: outputJack.id,
-      toJackId: inputJack.id,
+      fromJackId: output.id,
+      toJackId: input.id,
       color: CABLE_COLORS[nextColor % CABLE_COLORS.length],
     };
 
     set({
-      cables: [...filteredCables, newCable],
+      cables: [...cables.filter((c) => c.toJackId !== input.id), newCable],
       draggingFrom: null,
       nextColor: nextColor + 1,
     });

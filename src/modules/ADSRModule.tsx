@@ -27,7 +27,7 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     envGainRef.current = gain;
     setEnvNode(gain);
     return () => gain.disconnect();
-  }, []);
+  }, [engine.ctx]);
 
   const triggerEnvelope = useCallback(() => {
     if (!envGainRef.current) return;
@@ -35,10 +35,21 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     const ctx = engine.ctx;
     const gain = envGainRef.current.gain;
     const now = ctx.currentTime;
+    
+    // Cancel any existing scheduled changes
     gain.cancelScheduledValues(now);
+    
+    // Set initial value
     gain.setValueAtTime(0, now);
-    gain.linearRampToValueAtTime(1, now + attack);
-    gain.linearRampToValueAtTime(sustain, now + attack + decay);
+    
+    // Attack: ramp from 0 to 1
+    gain.linearRampToValueAtTime(1, now + Math.max(attack, 0.001));
+    
+    // Decay: ramp from 1 to sustain level
+    gain.linearRampToValueAtTime(sustain, now + Math.max(attack, 0.001) + Math.max(decay, 0.001));
+    
+    // Hold sustain value until release
+    console.log('ADSR triggered:', { attack, decay, sustain, release });
   }, [attack, decay, sustain, engine]);
 
   const releaseEnvelope = useCallback(() => {
@@ -46,10 +57,30 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     const ctx = engine.ctx;
     const gain = envGainRef.current.gain;
     const now = ctx.currentTime;
+    
+    // Cancel scheduled changes and start release from current value
     gain.cancelScheduledValues(now);
-    gain.setValueAtTime(gain.value, now);
-    gain.linearRampToValueAtTime(0, now + release);
-  }, [release, engine.ctx]);
+    const currentValue = gain.value;
+    gain.setValueAtTime(currentValue, now);
+    gain.linearRampToValueAtTime(0, now + Math.max(release, 0.001));
+    
+    console.log('ADSR released:', { release, currentValue });
+  }, [release]);
+
+  // Re-trigger envelope when knobs change while gate is active
+  useEffect(() => {
+    if (!isGate || !envGainRef.current) return;
+    
+    const ctx = engine.ctx;
+    const gain = envGainRef.current.gain;
+    const now = ctx.currentTime;
+    
+    // Retrigger with new values
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(0, now);
+    gain.linearRampToValueAtTime(1, now + Math.max(attack, 0.001));
+    gain.linearRampToValueAtTime(sustain, now + Math.max(attack, 0.001) + Math.max(decay, 0.001));
+  }, [attack, decay, sustain, isGate, engine]);
 
   // Memoize ADSR path calculation
   const adsrPath = useMemo(() => {
@@ -130,17 +161,11 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
           letterSpacing: '0.1em',
           cursor: 'pointer',
         }}
-        onMouseDown={() => {
-          setIsGate(true);
-          triggerEnvelope();
-        }}
-        onMouseUp={() => {
-          setIsGate(false);
-          releaseEnvelope();
-        }}
-        onMouseLeave={() => {
-          if (isGate) {
-            setIsGate(false);
+        onClick={() => {
+          setIsGate(!isGate);
+          if (!isGate) {
+            triggerEnvelope();
+          } else {
             releaseEnvelope();
           }
         }}

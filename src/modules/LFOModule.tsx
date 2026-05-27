@@ -62,20 +62,33 @@ function LFOModuleComponent({ id }: LFOModuleProps) {
 
   // Visual LFO display - use ref to avoid re-renders
   const phaseRef = useRef(0);
+  const lastTimeRef = useRef(performance.now());
   const [phaseUpdate, setPhaseUpdate] = useState(0);
+  const updateCountRef = useRef(0);
+
   useEffect(() => {
     let animFrame: number;
-    let updateCount = 0;
-    const tick = () => {
-      phaseRef.current = (phaseRef.current + rate * 0.016) % (Math.PI * 2);
-      // Throttle state updates to every 6 frames (~60fps even if RAF runs faster)
-      if (++updateCount % 6 === 0) {
+    lastTimeRef.current = performance.now();
+    
+    const tick = (currentTime: number) => {
+      const deltaTime = (currentTime - lastTimeRef.current) / 1000; // Convert to seconds
+      lastTimeRef.current = currentTime;
+      
+      // Update phase based on actual delta time
+      phaseRef.current = (phaseRef.current + rate * deltaTime * Math.PI * 2) % (Math.PI * 2);
+      
+      // Throttle state updates to every 3 frames for smoother visuals
+      if (++updateCountRef.current % 3 === 0) {
         setPhaseUpdate((u) => u + 1);
       }
       animFrame = requestAnimationFrame(tick);
     };
+    
     animFrame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animFrame);
+    return () => {
+      cancelAnimationFrame(animFrame);
+      updateCountRef.current = 0;
+    };
   }, [rate]);
 
   // Memoize waveform points calculation - use phaseRef instead of phase state

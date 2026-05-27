@@ -11,18 +11,26 @@ function PatchConnectionManagerComponent() {
   const { cables, jacks } = usePatchStore();
   const connectedRef = useRef<Record<string, ConnectedCable>>({});
 
-  const disconnectCable = (id: string, cable: ConnectedCable) => {
-    const fromJack = jacks[cable.fromJackId];
-    const toJack = jacks[cable.toJackId];
-    if (!fromJack?.audioNode) return;
+  // Helper to get audio target (audioParam or audioNode)
+  const getAudioTarget = (jackId: string) => {
+    const j = jacks[jackId];
+    return j?.audioParam || j?.audioNode || null;
+  };
+
+  // Unified connect/disconnect helper
+  const syncCable = (fromJackId: string, toJackId: string, connect: boolean) => {
+    const fromJack = jacks[fromJackId];
+    const target = getAudioTarget(toJackId);
+    if (!fromJack?.audioNode || !target) return;
+    
     try {
-      if (toJack?.audioParam) {
-        fromJack.audioNode.disconnect(toJack.audioParam);
-      } else if (toJack?.audioNode) {
-        fromJack.audioNode.disconnect(toJack.audioNode);
+      if (connect) {
+        fromJack.audioNode.connect(target);
+      } else {
+        fromJack.audioNode.disconnect(target);
       }
     } catch {
-      // ignore disconnect failures during cleanup
+      // ignore connect/disconnect failures
     }
   };
 
@@ -32,33 +40,24 @@ function PatchConnectionManagerComponent() {
     // Disconnect removed cables
     for (const cableId of Object.keys(connectedRef.current)) {
       if (!currentCableIds.has(cableId)) {
-        disconnectCable(cableId, connectedRef.current[cableId]);
+        const cable = connectedRef.current[cableId];
+        syncCable(cable.fromJackId, cable.toJackId, false);
         delete connectedRef.current[cableId];
       }
     }
 
-    // Try to connect all active cables
-    cables.forEach((cable) => {
-      if (connectedRef.current[cable.id]) return;
-      const fromJack = jacks[cable.fromJackId];
-      const toJack = jacks[cable.toJackId];
-      if (!fromJack?.audioNode) return;
-      try {
-        if (toJack?.audioParam) {
-          fromJack.audioNode.connect(toJack.audioParam);
-          connectedRef.current[cable.id] = { fromJackId: cable.fromJackId, toJackId: cable.toJackId };
-        } else if (toJack?.audioNode) {
-          fromJack.audioNode.connect(toJack.audioNode);
-          connectedRef.current[cable.id] = { fromJackId: cable.fromJackId, toJackId: cable.toJackId };
-        }
-      } catch (e) {
-        console.warn('Patch connect error:', e);
+    // Connect new cables
+    for (const cable of cables) {
+      if (!connectedRef.current[cable.id]) {
+        syncCable(cable.fromJackId, cable.toJackId, true);
+        connectedRef.current[cable.id] = { fromJackId: cable.fromJackId, toJackId: cable.toJackId };
       }
-    });
+    }
 
     return () => {
       for (const cableId of Object.keys(connectedRef.current)) {
-        disconnectCable(cableId, connectedRef.current[cableId]);
+        const cable = connectedRef.current[cableId];
+        syncCable(cable.fromJackId, cable.toJackId, false);
       }
       connectedRef.current = {};
     };

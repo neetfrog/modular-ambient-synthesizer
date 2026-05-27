@@ -32,7 +32,6 @@ function OutputModuleComponent({ id }: OutputModuleProps) {
     input.connect(analyser);
     const data = new Uint8Array(analyser.frequencyBinCount);
     let frame: number;
-    let toggle = false;
     let lastUpdate = 0;
     const updateInterval = 33; // ~30fps
 
@@ -46,9 +45,9 @@ function OutputModuleComponent({ id }: OutputModuleProps) {
           sum += v * v;
         }
         const rms = Math.sqrt(sum / data.length);
-        toggle = !toggle;
-        if (toggle) setVuLevel(rms);
-        else setVuLevelR(rms * (0.9 + Math.random() * 0.1));
+        // Update both channels together with slight variation for stereo visual
+        setVuLevel(rms);
+        setVuLevelR(rms * 0.95);
         lastUpdate = now;
       }
       frame = requestAnimationFrame(tick);
@@ -112,8 +111,16 @@ function OutputModuleComponent({ id }: OutputModuleProps) {
               {Array.from({ length: vuBars }).map((_, i) => {
                 const thresh = i / vuBars;
                 const active = level > thresh * 0.45;
-                const hot = i >= vuBars * 0.875;
-                const warm = i >= vuBars * 0.7;
+                const clipping = thresh > 0.875; // Red zone (clipping)
+                const warning = thresh > 0.7; // Orange zone (warning)
+                
+                let barColor = '#1a1a2e'; // Inactive
+                if (active) {
+                  if (clipping) barColor = '#ef4444'; // Red for clipping
+                  else if (warning) barColor = '#f97316'; // Orange for warning
+                  else barColor = '#22c55e'; // Green for normal
+                }
+                
                 return (
                   <div
                     key={i}
@@ -121,7 +128,7 @@ function OutputModuleComponent({ id }: OutputModuleProps) {
                       flex: 1,
                       height: 6,
                       borderRadius: 1,
-                      background: active ? (hot ? '#ef4444' : warm ? '#f97316' : accentColor) : '#1a1a2e',
+                      background: barColor,
                       transition: 'background 0.04s',
                     }}
                   />
