@@ -81,16 +81,23 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
       const next = new Set([...prev, note]);
       setCurrentNote(note);
       
-      // Update CV output to note frequency (for VCO pitch control)
+      // Update CV output to note frequency with smooth glide
       if (cvOutRef.current) {
         const now = engine.ctx.currentTime;
-        cvOutRef.current.gain.setValueAtTime(NOTE_FREQUENCIES[note] / 220, now);
+        const targetCV = NOTE_FREQUENCIES[note] / 220;
+        const glideTime = 0.05; // 50ms glide for smooth pitch change
+        cvOutRef.current.gain.cancelScheduledValues(now);
+        cvOutRef.current.gain.setValueAtTime(cvOutRef.current.gain.value, now);
+        cvOutRef.current.gain.linearRampToValueAtTime(targetCV, now + glideTime);
       }
       
-      // Open gate when first key pressed (ADSR will handle envelope)
+      // Open gate when first key pressed - ramp up to avoid click
       if (prev.size === 0 && gateOutRef.current) {
         const now = engine.ctx.currentTime;
-        gateOutRef.current.gain.setValueAtTime(1, now);
+        const attackTime = 0.005; // 5ms attack to avoid click
+        gateOutRef.current.gain.cancelScheduledValues(now);
+        gateOutRef.current.gain.setValueAtTime(0, now);
+        gateOutRef.current.gain.linearRampToValueAtTime(1, now + attackTime);
       }
       
       return next;
@@ -102,10 +109,13 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
       const next = new Set(prev);
       next.delete(note);
       
-      // Close gate when last key released (ADSR will handle release tail)
+      // Close gate when last key released - ramp down to avoid click
       if (next.size === 0 && gateOutRef.current) {
         const now = engine.ctx.currentTime;
-        gateOutRef.current.gain.setValueAtTime(0, now);
+        const releaseClickTime = 0.005; // 5ms to avoid click on release
+        gateOutRef.current.gain.cancelScheduledValues(now);
+        gateOutRef.current.gain.setValueAtTime(gateOutRef.current.gain.value, now);
+        gateOutRef.current.gain.linearRampToValueAtTime(0, now + releaseClickTime);
         setCurrentNote(null);
       } else if (next.size > 0) {
         // Switch to another active note
@@ -113,7 +123,11 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
         setCurrentNote(firstNote);
         if (cvOutRef.current) {
           const now = engine.ctx.currentTime;
-          cvOutRef.current.gain.setValueAtTime(NOTE_FREQUENCIES[firstNote] / 220, now);
+          const targetCV = NOTE_FREQUENCIES[firstNote] / 220;
+          const glideTime = 0.05; // smooth glide between notes
+          cvOutRef.current.gain.cancelScheduledValues(now);
+          cvOutRef.current.gain.setValueAtTime(cvOutRef.current.gain.value, now);
+          cvOutRef.current.gain.linearRampToValueAtTime(targetCV, now + glideTime);
         }
       }
       

@@ -51,8 +51,12 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
   const freqDataRef = useRef<Uint8Array | null>(null);
   const [inputNode, setInputNode] = useState<GainNode | null>(null);
 
-  const [mode, setMode] = useState<'time' | 'freq'>('time');
+  const [mode, setMode] = useState<'time' | 'freq' | 'marantz'>('time');
   const accentColor = '#a78bfa';
+  // Marantz VU meter state
+  const vuValueLeftRef = useRef(0);
+  const vuValueRightRef = useRef(0);
+  const vuDecayRef = useRef(0.92);
 
   useEffect(() => {
     const ctx = engine.ctx;
@@ -105,7 +109,79 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
         ctx2d.drawImage(gridCanvasRef.current, 0, 0);
       }
 
-      if (mode === 'time') {
+      if (mode === 'marantz') {
+        // Vintage Marantz VU meter style
+        const bufLen = analyser.frequencyBinCount;
+        if (!freqDataRef.current || freqDataRef.current.length !== bufLen) {
+          freqDataRef.current = new Uint8Array(bufLen);
+        }
+        const data = freqDataRef.current;
+        analyser.getByteFrequencyData(data);
+
+        // Get low and high frequency bands for stereo effect
+        const lowBand = data.slice(0, bufLen / 3).reduce((a, b) => a + b, 0) / (bufLen / 3);
+        const highBand = data.slice((bufLen * 2) / 3).reduce((a, b) => a + b, 0) / (bufLen / 3);
+
+        // Smooth VU updates with decay
+        vuValueLeftRef.current = Math.max(lowBand / 255, vuValueLeftRef.current * vuDecayRef.current);
+        vuValueRightRef.current = Math.max(highBand / 255, vuValueRightRef.current * vuDecayRef.current);
+
+        const padding = 8;
+        const meterY = H / 2;
+        const meterWidth = (W - padding * 3) / 2;
+
+        // Draw warm amber background (warm vintage tone)
+        ctx2d.fillStyle = '#1a0f05';
+        ctx2d.fillRect(0, 0, W, H);
+
+        // Draw each VU meter
+        const drawVUMeter = (x: number, value: number, label: string) => {
+          // Meter background
+          ctx2d.fillStyle = '#0a0603';
+          ctx2d.fillRect(x, padding, meterWidth, H - padding * 2);
+          ctx2d.strokeStyle = '#8b6914';
+          ctx2d.lineWidth = 1;
+          ctx2d.strokeRect(x, padding, meterWidth, H - padding * 2);
+
+          // dB scale marks
+          ctx2d.strokeStyle = '#5d4a0a';
+          ctx2d.lineWidth = 0.5;
+          for (let i = 0; i <= 10; i++) {
+            const markX = x + (i / 10) * meterWidth;
+            const markH = i % 2 === 0 ? 4 : 2;
+            ctx2d.beginPath();
+            ctx2d.moveTo(markX, H - padding - markH);
+            ctx2d.lineTo(markX, H - padding);
+            ctx2d.stroke();
+          }
+
+          // Needle
+          const needleX = x + value * meterWidth;
+          const needleH = H - padding * 2;
+          const needleGradient = ctx2d.createLinearGradient(needleX - 1, padding, needleX + 1, padding);
+          needleGradient.addColorStop(0, '#d4a574');
+          needleGradient.addColorStop(0.5, '#f0c868');
+          needleGradient.addColorStop(1, '#c4924a');
+          ctx2d.fillStyle = needleGradient;
+          ctx2d.fillRect(needleX - 1, padding, 2, needleH);
+
+          // Needle glow
+          ctx2d.shadowBlur = 6;
+          ctx2d.shadowColor = '#f0c868';
+          ctx2d.fillStyle = '#ffd700';
+          ctx2d.fillRect(needleX - 0.5, padding + 2, 1, needleH - 4);
+          ctx2d.shadowBlur = 0;
+
+          // Label
+          ctx2d.fillStyle = '#8b6914';
+          ctx2d.font = 'bold 8px monospace';
+          ctx2d.textAlign = 'center';
+          ctx2d.fillText(label, x + meterWidth / 2, H - 1);
+        };
+
+        drawVUMeter(padding, vuValueLeftRef.current, 'LOW');
+        drawVUMeter(W / 2 + padding, vuValueRightRef.current, 'HIGH');
+      } else if (mode === 'time') {
         const bufLen = analyser.frequencyBinCount;
         if (!timeDataRef.current || timeDataRef.current.length !== bufLen) {
           timeDataRef.current = new Uint8Array(bufLen);
@@ -125,7 +201,7 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
         }
         ctx2d.stroke();
         ctx2d.shadowBlur = 0;
-      } else {
+      } else if (mode === 'freq') {
         const bufLen = analyser.frequencyBinCount;
         if (!freqDataRef.current || freqDataRef.current.length !== bufLen) {
           freqDataRef.current = new Uint8Array(bufLen);
@@ -160,14 +236,14 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
     return () => cancelAnimationFrame(animRef.current);
   }, [mode]);
 
-  const handleModeChange = useCallback((m: 'time' | 'freq') => {
+  const handleModeChange = useCallback((m: 'time' | 'freq' | 'marantz') => {
     setMode(m);
   }, []);
 
   return (
     <ModulePanel title="SCOPE" subtitle="Oscilloscope" accentColor={accentColor} width={205} badge="VIZ">
       <div className="flex gap-1 mb-2">
-        {(['time', 'freq'] as const).map((m) => (
+        {(['time', 'freq', 'marantz'] as const).map((m) => (
           <button
             key={m}
             onClick={() => handleModeChange(m)}
@@ -182,7 +258,7 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
               cursor: 'pointer',
             }}
           >
-            {m === 'time' ? 'TIME DOM' : 'SPECTRUM'}
+            {m === 'time' ? 'TIME DOM' : m === 'freq' ? 'SPECTRUM' : 'MARANTZ'}
           </button>
         ))}
       </div>

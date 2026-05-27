@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { getAudioEngine } from '../audio/AudioEngine';
-import { audioDebug } from '../audio/AudioDebug';
 import Knob from '../components/Knob';
 import ModulePanel from '../components/ModulePanel';
 import { ModuleButton } from '../components/ModuleButton';
@@ -8,6 +7,7 @@ import { ModuleIOSection } from '../components/ModuleIOSection';
 
 type WaveformType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
+// Move outside component to avoid recreating
 const WAVEFORM_ICONS: Record<WaveformType, string> = {
   sine: '∿',
   square: '⊓',
@@ -46,7 +46,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     osc.frequency.value = 110;
     osc.detune.value = 0;
     osc.connect(gain);
-    gain.gain.value = 0.35; // Reduce headroom for multiple oscillators
+    gain.gain.value = 0.35;
     fmGain.gain.value = 220;
     fmGain.connect(osc.frequency);
     pmGain.gain.value = 200;
@@ -58,8 +58,6 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     fmGainRef.current = fmGain;
     pmGainRef.current = pmGain;
     setNodes({ out: gain, fmIn: fmGain, pmIn: pmGain });
-    
-    audioDebug.logNodeCreation('OscillatorNode', id);
 
     return () => {
       try {
@@ -69,88 +67,93 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
       gain.disconnect();
       fmGain.disconnect();
       pmGain.disconnect();
-      audioDebug.logNodeDestruction('OscillatorNode', id);
     };
-  }, [id]);
+  }, [id, engine]);
 
   useEffect(() => {
-    if (oscRef.current) {
-      const now = engine.ctx.currentTime;
-      try {
-        // Cancel any pending ramps and schedule new value
-        oscRef.current.frequency.cancelScheduledValues(now);
-        oscRef.current.frequency.setValueAtTime(oscRef.current.frequency.value, now);
-        // Ramp over 50ms for smooth changes
-        oscRef.current.frequency.exponentialRampToValueAtTime(Math.max(freq, 20), now + 0.05);
-        
-        fmGainRef.current.gain.cancelScheduledValues(now);
-        fmGainRef.current.gain.setValueAtTime(fmGainRef.current.gain.value, now);
-        fmGainRef.current.gain.exponentialRampToValueAtTime(freq * 2, now + 0.05);
-      } catch (e) {
-        // Fallback to direct value if ramp fails
-        oscRef.current.frequency.value = Math.max(freq, 20);
-        if (fmGainRef.current) fmGainRef.current.gain.value = freq * 2;
-      }
-    }
-  }, [freq, engine.ctx]);
+    if (!oscRef.current || !fmGainRef.current) return;
+    
+    const now = engine.ctx.currentTime;
+    const clampedFreq = Math.max(freq, 20);
+    
+    oscRef.current.frequency.cancelScheduledValues(now);
+    oscRef.current.frequency.setValueAtTime(oscRef.current.frequency.value, now);
+    oscRef.current.frequency.setTargetAtTime(clampedFreq, now, 0.02);
+    
+    fmGainRef.current.gain.cancelScheduledValues(now);
+    fmGainRef.current.gain.setValueAtTime(fmGainRef.current.gain.value, now);
+    fmGainRef.current.gain.setTargetAtTime(clampedFreq * 2, now, 0.02);
+  }, [freq, engine]);
 
   useEffect(() => {
-    if (oscRef.current && detuneRef.current !== detune) {
-      const now = engine.ctx.currentTime;
-      try {
-        oscRef.current.detune.cancelScheduledValues(now);
-        oscRef.current.detune.setValueAtTime(oscRef.current.detune.value, now);
-        oscRef.current.detune.linearRampToValueAtTime(detune, now + 0.05);
-        detuneRef.current = detune;
-      } catch (e) {
-        oscRef.current.detune.value = detune;
-      }
-    }
-  }, [detune, engine.ctx]);
+    if (!oscRef.current || detuneRef.current === detune) return;
+    
+    detuneRef.current = detune;
+    const now = engine.ctx.currentTime;
+    
+    oscRef.current.detune.cancelScheduledValues(now);
+    oscRef.current.detune.setValueAtTime(oscRef.current.detune.value, now);
+    oscRef.current.detune.setTargetAtTime(detune, now, 0.02);
+  }, [detune, engine]);
 
   useEffect(() => {
     if (oscRef.current) {
       oscRef.current.type = waveform;
-      audioDebug.logParamChange('waveform', 0); // 0 is placeholder
     }
   }, [waveform]);
 
   useEffect(() => {
-    if (gainRef.current) {
-      const now = engine.ctx.currentTime;
-      const targetValue = isRunning ? 1 : 0;
-      try {
-        // Cancel pending ramps and set current value first
-        gainRef.current.gain.cancelScheduledValues(now);
-        gainRef.current.gain.setValueAtTime(gainRef.current.gain.value, now);
-        gainRef.current.gain.linearRampToValueAtTime(targetValue, now + 0.05);
-      } catch (e) {
-        gainRef.current.gain.value = targetValue;
-      }
-    }
-  }, [isRunning, engine.ctx]);
+    if (!gainRef.current) return;
+    
+    const now = engine.ctx.currentTime;
+    const targetValue = isRunning ? 0.35 : 0;
+    
+    gainRef.current.gain.cancelScheduledValues(now);
+    gainRef.current.gain.setValueAtTime(gainRef.current.gain.value, now);
+    gainRef.current.gain.setTargetAtTime(targetValue, now, 0.02);
+  }, [isRunning, engine]);
 
   const handleToggle = useCallback(() => {
     engine.resume();
     setIsRunning((v) => !v);
   }, [engine]);
 
-  const displayFreq = freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`;
+  const handleWaveformChange = useCallback((w: WaveformType) => {
+    setWaveform(w);
+  }, []);
+
+  const handleFreqChange = useCallback((value: number) => {
+    setFreq(value);
+  }, []);
+
+  const handleDetuneChange = useCallback((value: number) => {
+    setDetune(value);
+  }, []);
+
+  const displayFreq = useMemo(() => 
+    freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`,
+    [freq]
+  );
+
+  const waveformButtons = useMemo(() =>
+    (Object.keys(WAVEFORM_ICONS) as WaveformType[]).map((w) => (
+      <ModuleButton
+        key={w}
+        isActive={waveform === w}
+        onClick={() => handleWaveformChange(w)}
+        label={WAVEFORM_ICONS[w]}
+        accentColor={accentColor}
+        title={w}
+        className="flex-1"
+      />
+    )),
+    [waveform, accentColor, handleWaveformChange]
+  );
 
   return (
     <ModulePanel title={label} subtitle="Voltage Ctrl Osc" accentColor={accentColor} width={190} badge="VCO">
       <div className="flex gap-1 mb-3">
-        {(Object.keys(WAVEFORM_ICONS) as WaveformType[]).map((w) => (
-          <ModuleButton
-            key={w}
-            isActive={waveform === w}
-            onClick={() => setWaveform(w)}
-            label={WAVEFORM_ICONS[w]}
-            accentColor={accentColor}
-            title={w}
-            className="flex-1"
-          />
-        ))}
+        {waveformButtons}
       </div>
 
       <div
@@ -171,14 +174,14 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
           value={freq}
           min={20}
           max={4000}
-          onChange={setFreq}
+          onChange={handleFreqChange}
           label="Freq"
           unit="Hz"
           size="md"
           color={accentColor}
           logarithmic
         />
-        <Knob value={detune} min={-100} max={100} onChange={setDetune} label="Detune" size="md" color={accentColor} />
+        <Knob value={detune} min={-100} max={100} onChange={handleDetuneChange} label="Detune" size="md" color={accentColor} />
       </div>
 
       <div className="flex justify-center mb-3">
