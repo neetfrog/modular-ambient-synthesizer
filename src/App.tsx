@@ -47,62 +47,6 @@ interface Preset {
 
 const PRESETS: Preset[] = [
   {
-    name: 'ADSR TEST 1',
-    description: 'Simplest: VCO → ADSR → Output (manual gate trigger)',
-    emoji: '?',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
-      { id: 'output1', type: 'output', x: 500, y: 24 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'adsr1_gate_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'adsr1_env_out', toJackId: 'output1_l_in', color: '#a78bfa' },
-      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'output1_r_in', color: '#a78bfa' },
-    ],
-  },
-  {
-    name: 'ADSR TEST 2',
-    description: 'VCO → VCA + ADSR CV → Output',
-    emoji: '?',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
-      { id: 'vca1', type: 'vca', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
-      { id: 'c3', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
-    ],
-  },
-  {
-    name: 'ADSR TEST 3',
-    description: 'Noise → ADSR → Output (test with different source)',
-    emoji: '?',
-    modules: [
-      { id: 'noise1', type: 'noise', x: 24, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
-      { id: 'output1', type: 'output', x: 500, y: 24 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'noise1_out', toJackId: 'adsr1_gate_in', color: '#e2e8f0' },
-      { id: 'c2', fromJackId: 'adsr1_env_out', toJackId: 'output1_l_in', color: '#a78bfa' },
-      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'output1_r_in', color: '#a78bfa' },
-    ],
-  },
-  {
-    name: 'EMPTY',
-    description: 'Start from scratch with just output',
-    emoji: '○',
-    modules: [
-      { id: 'output1', type: 'output', x: 24, y: 24 },
-    ],
-    cables: [],
-  },
-  {
     name: 'BASIC OSC',
     description: 'Simple oscillator into output',
     emoji: '∿',
@@ -148,23 +92,6 @@ const PRESETS: Preset[] = [
     ],
   },
   {
-    name: 'FILTERED + VERB',
-    description: 'Filtered oscillator with reverb space',
-    emoji: '⊞☁',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
-      { id: 'reverb1', type: 'reverb', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vcf1_out', toJackId: 'reverb1_in', color: '#4ade80' },
-      { id: 'c3', fromJackId: 'reverb1_dry_out', toJackId: 'output1_l_in', color: '#34d399' },
-      { id: 'c4', fromJackId: 'reverb1_wet_out', toJackId: 'output1_r_in', color: '#a78bfa' },
-    ],
-  },
-  {
     name: 'MODULATED + VERB',
     description: 'LFO-modulated filter with reverb tail',
     emoji: '◈☁',
@@ -181,51 +108,6 @@ const PRESETS: Preset[] = [
       { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'reverb1_in', color: '#4ade80' },
       { id: 'c4', fromJackId: 'reverb1_dry_out', toJackId: 'output1_l_in', color: '#34d399' },
       { id: 'c5', fromJackId: 'reverb1_wet_out', toJackId: 'output1_r_in', color: '#a78bfa' },
-    ],
-  },
-  {
-    name: 'NOISE BASIC',
-    description: 'Noise source into output',
-    emoji: '⋈',
-    modules: [
-      { id: 'noise1', type: 'noise', x: 24, y: 24 },
-      { id: 'output1', type: 'output', x: 260, y: 24 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'noise1_out', toJackId: 'output1_l_in', color: '#e2e8f0' },
-      { id: 'c2', fromJackId: 'noise1_out', toJackId: 'output1_r_in', color: '#e2e8f0' },
-    ],
-  },
-  {
-    name: 'NOISE FILTERED',
-    description: 'Noise through filter',
-    emoji: '⋈⊞',
-    modules: [
-      { id: 'noise1', type: 'noise', x: 24, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
-      { id: 'output1', type: 'output', x: 500, y: 24 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'noise1_out', toJackId: 'vcf1_in', color: '#e2e8f0' },
-      { id: 'c2', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
-      { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
-    ],
-  },
-  {
-    name: 'NOISE MODULATED',
-    description: 'Noise with LFO-swept filter',
-    emoji: '⋈◈',
-    modules: [
-      { id: 'noise1', type: 'noise', x: 24, y: 24 },
-      { id: 'lfo1', type: 'lfo', x: 260, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'noise1_out', toJackId: 'vcf1_in', color: '#e2e8f0' },
-      { id: 'c2', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
-      { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
-      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
     ],
   },
   {
@@ -261,118 +143,6 @@ const PRESETS: Preset[] = [
     ],
   },
   {
-    name: 'FILTERED + DELAY',
-    description: 'Filtered oscillator with echo repeats',
-    emoji: '⊞♪',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
-      { id: 'delay1', type: 'delay', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vcf1_out', toJackId: 'delay1_in', color: '#4ade80' },
-      { id: 'c3', fromJackId: 'delay1_dry_out', toJackId: 'output1_l_in', color: '#fb923c' },
-      { id: 'c4', fromJackId: 'delay1_wet_out', toJackId: 'output1_r_in', color: '#fb923c' },
-    ],
-  },
-  {
-    name: 'ENVELOPE SHAPER',
-    description: 'Filtered oscillator shaped by ADSR envelope',
-    emoji: '⊞︿',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 500, y: 24 },
-      { id: 'vca1', type: 'vca', x: 24, y: 320 },
-      { id: 'output1', type: 'output', x: 260, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vcf1_out', toJackId: 'vca1_in', color: '#4ade80' },
-      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
-      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
-    ],
-  },
-  {
-    name: 'SEQ + ADSR',
-    description: 'Sequencer triggers ADSR-shaped notes (try clicking sequencer steps)',
-    emoji: '⊏︿',
-    modules: [
-      { id: 'seq1', type: 'seq', x: 24, y: 24 },
-      { id: 'vco1', type: 'vco1', x: 260, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 500, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 24, y: 320 },
-      { id: 'vca1', type: 'vca', x: 260, y: 320 },
-      { id: 'output1', type: 'output', x: 500, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'seq1_cv_out', toJackId: 'vco1_fm_in', color: '#ff4d6d' },
-      { id: 'c2', fromJackId: 'seq1_gate_out', toJackId: 'adsr1_gate_in', color: '#fbbf24' },
-      { id: 'c3', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'vca1_in', color: '#4ade80' },
-      { id: 'c5', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
-      { id: 'c6', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c7', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
-    ],
-  },
-  {
-    name: 'PLUCK',
-    description: 'Plucked string: VCO shaped by ADSR envelope for percussive decay',
-    emoji: '↗︿',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
-      { id: 'vca1', type: 'vca', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'adsr1_gate_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#ff9500' },
-      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
-      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
-    ],
-  },
-  {
-    name: 'NOISE PUNCH',
-    description: 'Noise burst shaped by snappy ADSR (kick/punch sound)',
-    emoji: '⋈↘',
-    modules: [
-      { id: 'noise1', type: 'noise', x: 24, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
-      { id: 'vca1', type: 'vca', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'noise1_out', toJackId: 'adsr1_gate_in', color: '#e2e8f0' },
-      { id: 'c2', fromJackId: 'noise1_out', toJackId: 'vca1_in', color: '#e2e8f0' },
-      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
-      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
-    ],
-  },
-  {
-    name: 'FILTER SWEEP',
-    description: 'ADSR sweeps filter cutoff for dynamic tone shaping',
-    emoji: '∿⊞︿',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
-      { id: 'adsr1', type: 'adsr', x: 500, y: 24 },
-      { id: 'output1', type: 'output', x: 24, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'adsr1_gate_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vcf1_cv_in', color: '#a78bfa' },
-      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
-      { id: 'c5', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
-    ],
-  },
-  {
     name: 'MULT BASIC',
     description: 'Test Mult: VCO split to 2 outputs',
     emoji: '∿✕',
@@ -385,25 +155,6 @@ const PRESETS: Preset[] = [
       { id: 'c1', fromJackId: 'vco1_out', toJackId: 'mult1_in', color: '#ff9500' },
       { id: 'c2', fromJackId: 'mult1_out1', toJackId: 'output1_l_in', color: '#fb923c' },
       { id: 'c3', fromJackId: 'mult1_out2', toJackId: 'output1_r_in', color: '#fb923c' },
-    ],
-  },
-  {
-    name: 'ATTEN BASIC',
-    description: 'Test Atten: LFO attenuated to control VCA',
-    emoji: '◈▔',
-    modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'lfo1', type: 'lfo', x: 260, y: 24 },
-      { id: 'atten1', type: 'atten', x: 500, y: 24 },
-      { id: 'vca1', type: 'vca', x: 24, y: 320 },
-      { id: 'output1', type: 'output', x: 260, y: 320 },
-    ],
-    cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'lfo1_out', toJackId: 'atten1_in', color: '#38bdf8' },
-      { id: 'c3', fromJackId: 'atten1_out', toJackId: 'vca1_cv_in', color: '#60a5fa' },
-      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
     ],
   },
 ];
