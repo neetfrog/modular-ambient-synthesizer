@@ -9,18 +9,23 @@ interface KeyboardModuleProps {
   accentColor?: string;
 }
 
-// Note frequencies for 2 octaves starting from C3
+// Note frequencies - 2 octaves (C3 to B4)
 const NOTE_FREQUENCIES = {
-  'C': 130.81, 'C#': 138.59, 'D': 146.83, 'D#': 155.56,
-  'E': 164.81, 'F': 174.61, 'F#': 185.00, 'G': 196.00,
-  'G#': 207.65, 'A': 220.00, 'A#': 233.08, 'B': 246.94,
+  'C3': 130.81, 'C#3': 138.59, 'D3': 146.83, 'D#3': 155.56, 'E3': 164.81, 'F3': 174.61, 'F#3': 185.00, 'G3': 196.00, 'G#3': 207.65, 'A3': 220.00, 'A#3': 233.08, 'B3': 246.94,
+  'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'D#4': 311.13, 'E4': 329.63, 'F4': 349.23, 'F#4': 369.99, 'G4': 392.00, 'G#4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'B4': 493.88,
 } as const;
 
 type NoteName = keyof typeof NOTE_FREQUENCIES;
 
-const NOTES: NoteName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const WHITE_NOTES: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const BLACK_NOTES: (NoteName | null)[] = [null, 'C#', null, 'D#', null, null, 'F#', null, 'G#', null, 'A#', null];
+// Map computer keyboard keys to notes - 2 octaves (defined outside component to avoid dependency issues)
+const KEY_TO_NOTE: Record<string, NoteName> = {
+  // ZXCVBNM: Octave 3 white keys (bass)
+  'z': 'C3', 'x': 'D3', 'c': 'E3', 'v': 'F3', 'b': 'G3', 'n': 'A3', 'm': 'B3',
+  // ASDFGH: Octave 3 black keys (sharps)
+  'a': 'C#3', 's': 'D#3', 'd': 'F#3', 'f': 'G#3', 'g': 'A#3',
+  // QWERTY: Octave 4 white keys (melody)
+  'q': 'C4', 'w': 'D4', 'e': 'E4', 'r': 'F4', 't': 'G4', 'y': 'A4', 'u': 'B4',
+};
 
 function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf8' }: KeyboardModuleProps) {
   const engine = getAudioEngine();
@@ -30,6 +35,8 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
   const [cvOut, setCvOut] = useState<GainNode | null>(null);
   const [gateOut, setGateOut] = useState<GainNode | null>(null);
   const [currentNote, setCurrentNote] = useState<NoteName | null>(null);
+  const [width, setWidth] = useState(520);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   // Initialize CV and GATE outputs (control signals only, no audio)
   useEffect(() => {
@@ -114,91 +121,164 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
     });
   };
 
+  // Keyboard event listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const note = KEY_TO_NOTE[e.key.toLowerCase()];
+      if (note && !e.repeat) {
+        playNote(note);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const note = KEY_TO_NOTE[e.key.toLowerCase()];
+      if (note) {
+        stopNote(note);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Resize handler
+  useEffect(() => {
+    let startX = 0;
+    let startWidth = 0;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const minWidth = 350;
+      const maxWidth = 1200;
+      const delta = e.clientX - startX;
+      const newWidth = Math.min(Math.max(startWidth + delta, minWidth), maxWidth);
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      startX = e.clientX;
+      startWidth = width;
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const resizeHandle = resizeRef.current;
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', handleMouseDown);
+      return () => {
+        resizeHandle.removeEventListener('mousedown', handleMouseDown);
+      };
+    }
+  }, [width]);
+
   return (
-    <ModulePanel title={label} width={280} accentColor={accentColor} badge="KBD">
-      <div className="p-2 flex flex-col gap-2">
-        {/* Piano keyboard */}
-        <div className="relative h-20 flex items-end gap-0.5">
-          {/* White keys */}
-          <div className="flex gap-1">
-            {WHITE_NOTES.map((note) => (
+    <div style={{ position: 'relative' }}>
+      <ModulePanel title={label} width={width} accentColor={accentColor} badge="KBD">
+        <div className="p-2 flex flex-col gap-2">
+        {/* Info: Computer keyboard mapping */}
+        <div
+          className="text-center text-xs rounded p-1"
+          style={{
+            background: '#0a4a2e',
+            border: '1px solid #1a7a4e',
+            color: '#10b981',
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            lineHeight: '1.2',
+          }}
+        >
+          <div>ZXCVBNM = low | ASDFG = low sharps | QWERTY = high</div>
+        </div>
+
+        {/* Piano keyboard - 2 octaves (C3 and C4) */}
+        <div className="relative mx-auto" style={{ width: '100%', height: 90, background: '#1a1a2e', borderRadius: '4px', padding: '4px', overflow: 'hidden' }}>
+          {/* White keys - 14 keys for 2 octaves */}
+          <div className="flex gap-0" style={{ height: '100%' }}>
+            {(['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'] as const).map((note, idx) => (
               <button
                 key={note}
-                onMouseDown={() => playNote(note)}
-                onMouseUp={() => stopNote(note)}
-                onMouseLeave={() => stopNote(note)}
-                className="flex-1 rounded-b transition-all"
+                onMouseDown={() => playNote(note as NoteName)}
+                onMouseUp={() => stopNote(note as NoteName)}
+                onMouseLeave={() => stopNote(note as NoteName)}
                 style={{
-                  width: 24,
-                  height: 70,
-                  background: activeNotes.has(note)
-                    ? '#e0e0e0'
-                    : 'white',
-                  border: '1px solid #999',
-                  borderTop: 'none',
+                  flex: 1,
+                  height: '100%',
+                  background: activeNotes.has(note as NoteName) ? '#34d399' : '#f5f5f5',
+                  border: '2px solid #333',
+                  borderRadius: '0 0 4px 4px',
                   cursor: 'pointer',
-                  fontSize: 8,
+                  fontSize: '8px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  color: '#000',
+                  transition: 'background 0.05s',
                   display: 'flex',
                   alignItems: 'flex-end',
                   justifyContent: 'center',
                   paddingBottom: 2,
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  color: '#333',
+                  position: 'relative',
+                  zIndex: 1,
                 }}
               >
-                {note}
+                {note.slice(0, -1)}
               </button>
             ))}
           </div>
 
-          {/* Black keys - positioned absolutely */}
-          {BLACK_NOTES.map((note, idx) => {
-            if (!note) return null;
-            const offset = idx < 6 ? idx * 22.5 + 16 : (idx - 6) * 22.5 + 16;
-            return (
+          {/* Black keys - 10 keys for 2 octaves */}
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '55%', pointerEvents: 'none' }}>
+            {[
+              { note: 'C#3' as NoteName, whiteIdx: 0.5 },
+              { note: 'D#3' as NoteName, whiteIdx: 1.5 },
+              { note: 'F#3' as NoteName, whiteIdx: 3.5 },
+              { note: 'G#3' as NoteName, whiteIdx: 4.5 },
+              { note: 'A#3' as NoteName, whiteIdx: 5.5 },
+              { note: 'C#4' as NoteName, whiteIdx: 7.5 },
+              { note: 'D#4' as NoteName, whiteIdx: 8.5 },
+              { note: 'F#4' as NoteName, whiteIdx: 10.5 },
+              { note: 'G#4' as NoteName, whiteIdx: 11.5 },
+              { note: 'A#4' as NoteName, whiteIdx: 12.5 },
+            ].map(({ note, whiteIdx }) => (
               <button
                 key={note}
                 onMouseDown={() => playNote(note)}
                 onMouseUp={() => stopNote(note)}
                 onMouseLeave={() => stopNote(note)}
-                className="absolute rounded-b transition-all"
                 style={{
-                  width: 16,
-                  height: 50,
-                  left: offset,
-                  top: 0,
-                  background: activeNotes.has(note) ? '#333' : '#000',
-                  border: '1px solid #000',
+                  position: 'absolute',
+                  left: `calc((${whiteIdx} / 14) * 100% - 13px)`,
+                  width: 26,
+                  height: '100%',
+                  background: activeNotes.has(note) ? '#059669' : '#1a1a2e',
+                  border: '2px solid #000',
+                  borderRadius: '0 0 3px 3px',
                   cursor: 'pointer',
-                  fontSize: 7,
+                  fontSize: '6px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  color: '#0ff',
                   display: 'flex',
                   alignItems: 'flex-end',
                   justifyContent: 'center',
                   paddingBottom: 1,
-                  fontFamily: 'monospace',
-                  fontWeight: 'bold',
-                  color: '#fff',
-                  zIndex: 10,
+                  pointerEvents: 'auto',
+                  transition: 'background 0.05s',
+                  zIndex: 2,
                 }}
               >
-                {note}
+                {note.slice(0, -1)}
               </button>
-            );
-          })}
-        </div>
-
-        {/* Octave info */}
-        <div
-          className="text-center text-xs rounded p-1"
-          style={{
-            background: '#08081a',
-            border: '1px solid #1a1a30',
-            color: accentColor,
-            fontFamily: 'monospace',
-          }}
-        >
-          C3 - B4
+            ))}
+          </div>
         </div>
 
         {/* Output section */}
@@ -211,6 +291,28 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
         />
       </div>
     </ModulePanel>
+
+    {/* Resize handle */}
+    <div
+      ref={resizeRef}
+      data-nondrag="true"
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 16,
+        height: 16,
+        background: 'linear-gradient(135deg, transparent 50%, #38bdf8 50%)',
+        cursor: 'nwse-resize',
+        borderRadius: '0 0 6px 0',
+        opacity: 0.6,
+        transition: 'opacity 0.2s',
+        userSelect: 'none',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+    />
+    </div>
   );
 }
 
