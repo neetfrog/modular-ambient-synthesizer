@@ -8,7 +8,8 @@ interface ConnectedCable {
 
 // This component syncs patch cable connections to Web Audio API nodes
 function PatchConnectionManagerComponent() {
-  const { cables, jacks } = usePatchStore();
+  const cables = usePatchStore((s) => s.cables);
+  const jacks = usePatchStore((s) => s.jacks);
   const connectedRef = useRef<Record<string, ConnectedCable>>({});
 
   // Helper to get audio target (audioParam or audioNode)
@@ -49,8 +50,14 @@ function PatchConnectionManagerComponent() {
     // Connect new cables
     for (const cable of cables) {
       if (!connectedRef.current[cable.id]) {
-        syncCable(cable.fromJackId, cable.toJackId, true);
-        connectedRef.current[cable.id] = { fromJackId: cable.fromJackId, toJackId: cable.toJackId };
+        const fromJack = jacks[cable.fromJackId];
+        const toJack = jacks[cable.toJackId];
+        
+        // Only connect if both jacks are registered and have audio nodes
+        if (fromJack?.audioNode && toJack?.audioNode) {
+          syncCable(cable.fromJackId, cable.toJackId, true);
+          connectedRef.current[cable.id] = { fromJackId: cable.fromJackId, toJackId: cable.toJackId };
+        }
       }
     }
 

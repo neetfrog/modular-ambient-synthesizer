@@ -456,7 +456,9 @@ export default function App() {
   const [activePreset, setActivePreset] = useState('EMPTY');
   const [started, setStarted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { cancelDrag, draggingFrom, cables } = usePatchStore((s) => ({ cancelDrag: s.cancelDrag, draggingFrom: s.draggingFrom, cables: s.cables }));
+  const cancelDrag = usePatchStore((s) => s.cancelDrag);
+  const draggingFrom = usePatchStore((s) => s.draggingFrom);
+  const cables = usePatchStore((s) => s.cables);
   const resetCables = usePatchStore((s) => s.resetCables);
   const setCables = usePatchStore((s) => s.setCables);
 

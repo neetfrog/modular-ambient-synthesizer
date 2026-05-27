@@ -23,6 +23,7 @@ interface PatchStore {
   removeCable: (cableId: string) => void;
   removeJackCables: (jackId: string) => void;
   resetCables: () => void;
+  setCables: (cables: PatchCable[]) => void;
   getCablesForJack: (jackId: string) => PatchCable[];
 }
 

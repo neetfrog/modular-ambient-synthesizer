@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { usePatchStore } from '../store/synthStore';
 
 interface JackPortProps {
@@ -13,9 +13,12 @@ interface JackPortProps {
 function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }: JackPortProps) {
   const ref = useRef<HTMLDivElement>(null);
   const lastTouchTimeRef = useRef<number>(0);
-  const { registerJack, unregisterJack, updateJackPosition, startDrag, completePatch, removeJackCables } = usePatchStore((s) => 
-    ({ registerJack: s.registerJack, unregisterJack: s.unregisterJack, updateJackPosition: s.updateJackPosition, startDrag: s.startDrag, completePatch: s.completePatch, removeJackCables: s.removeJackCables })
-  );
+  const registerJack = usePatchStore((s) => s.registerJack);
+  const unregisterJack = usePatchStore((s) => s.unregisterJack);
+  const updateJackPosition = usePatchStore((s) => s.updateJackPosition);
+  const startDrag = usePatchStore((s) => s.startDrag);
+  const completePatch = usePatchStore((s) => s.completePatch);
+  const removeJackCables = usePatchStore((s) => s.removeJackCables);
   const cables = usePatchStore((s) => s.cables);
   const draggingFrom = usePatchStore((s) => s.draggingFrom);
 
@@ -27,7 +30,7 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
   useEffect(() => {
     registerJack({ id, moduleId, type, label, audioParam, audioNode });
     return () => unregisterJack(id);
-  }, [id, moduleId, type, label, audioParam, audioNode, registerJack, unregisterJack]);
+  }, [id, moduleId, type, label, audioNode, audioParam, registerJack, unregisterJack]);
 
   const updatePos = useCallback(() => {
     if (!ref.current) return;
@@ -37,21 +40,49 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
     updateJackPosition(id, x, y);
   }, [id, updateJackPosition]);
 
+  // Update position synchronously after DOM paint
+  useLayoutEffect(() => {
+    updatePos();
+  }, [updatePos]);
+
   // Use ResizeObserver + scroll events only (no continuous RAF polling)
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
 
+    // Initial position update
     updatePos();
+    
+    // Small delay to catch late layout changes
+    const timeoutId = setTimeout(updatePos, 50);
+    
     const observer = new ResizeObserver(updatePos);
     observer.observe(element);
 
     const handleScroll = () => updatePos();
+    const handleResize = () => updatePos();
+    
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    // Continuous RAF polling to track module movement
+    let lastUpdate = performance.now();
+    const updateInterval = 16; // ~60fps
+    const rafId = requestAnimationFrame(function checkPosition() {
+      const now = performance.now();
+      if (now - lastUpdate >= updateInterval) {
+        updatePos();
+        lastUpdate = now;
+      }
+      requestAnimationFrame(checkPosition);
+    });
 
     return () => {
+      clearTimeout(timeoutId);
+      cancelAnimationFrame(rafId);
       observer.disconnect();
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
     };
   }, [updatePos]);
 

@@ -2,9 +2,13 @@ import React, { useEffect, useCallback } from 'react';
 import { usePatchStore } from '../store/synthStore';
 
 function PatchBayComponent() {
-  const { cables, jacks, draggingFrom, mousePos, setMousePos, cancelDrag, removeCable } = usePatchStore((s) =>
-    ({ cables: s.cables, jacks: s.jacks, draggingFrom: s.draggingFrom, mousePos: s.mousePos, setMousePos: s.setMousePos, cancelDrag: s.cancelDrag, removeCable: s.removeCable })
-  );
+  const cables = usePatchStore((s) => s.cables);
+  const jacks = usePatchStore((s) => s.jacks);
+  const draggingFrom = usePatchStore((s) => s.draggingFrom);
+  const mousePos = usePatchStore((s) => s.mousePos);
+  const setMousePos = usePatchStore((s) => s.setMousePos);
+  const cancelDrag = usePatchStore((s) => s.cancelDrag);
+  const removeCable = usePatchStore((s) => s.removeCable);
   const lastMouseUpdateRef = React.useRef(0);
 
   useEffect(() => {
