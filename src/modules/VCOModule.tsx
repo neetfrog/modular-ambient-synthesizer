@@ -91,7 +91,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
   const handleToggle = useCallback(() => {
     engine.resume();
     setIsRunning((v) => !v);
-  }, [engine]);
+  }, []);
 
   const displayFreq = freq >= 1000 ? `${(freq / 1000).toFixed(2)}kHz` : `${freq.toFixed(1)}Hz`;
 

@@ -9,7 +9,7 @@ interface ModulePanelProps {
   badge?: string;
 }
 
-export default function ModulePanel({
+function ModulePanelComponent({
   title,
   subtitle,
   width = 180,
@@ -112,3 +112,5 @@ export default function ModulePanel({
     </div>
   );
 }
+
+export default React.memo(ModulePanelComponent);

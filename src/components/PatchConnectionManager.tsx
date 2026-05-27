@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { usePatchStore } from '../store/synthStore';
 
 interface ConnectedCable {
@@ -7,7 +7,7 @@ interface ConnectedCable {
 }
 
 // This component syncs patch cable connections to Web Audio API nodes
-export default function PatchConnectionManager() {
+function PatchConnectionManagerComponent() {
   const { cables, jacks } = usePatchStore();
   const connectedRef = useRef<Record<string, ConnectedCable>>({});
 
@@ -66,3 +66,5 @@ export default function PatchConnectionManager() {
 
   return null;
 }
+const PatchConnectionManager = React.memo(PatchConnectionManagerComponent);
+export default PatchConnectionManager;

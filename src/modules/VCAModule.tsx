@@ -29,14 +29,14 @@ function VCAModuleComponent({ id }: VCAModuleProps) {
     cvGainRef.current = cvGain;
     setNodes({ gain, cv: cvGain });
 
-    // VU analyser - throttled to 60fps max
+    // VU analyser - throttled to 30fps
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
     gain.connect(analyser);
     const data = new Uint8Array(analyser.frequencyBinCount);
     let frame: number;
     let lastUpdate = 0;
-    const updateInterval = 16; // ~60fps
+    const updateInterval = 33; // ~30fps
 
     const tick = () => {
       const now = performance.now();

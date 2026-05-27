@@ -10,7 +10,7 @@ interface JackPortProps {
   audioNode?: AudioNode;
 }
 
-export default function JackPort({ id, moduleId, type, label, audioParam, audioNode }: JackPortProps) {
+function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }: JackPortProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { registerJack, unregisterJack, updateJackPosition, startDrag, completePatch, cables, draggingFrom } = usePatchStore();
 
@@ -32,7 +32,7 @@ export default function JackPort({ id, moduleId, type, label, audioParam, audioN
     updateJackPosition(id, x, y);
   }, [id, updateJackPosition]);
 
-  // Use ResizeObserver for layout changes only - no continuous RAF
+  // Use ResizeObserver for layout changes + throttled RAF for position tracking during drags
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -41,11 +41,25 @@ export default function JackPort({ id, moduleId, type, label, audioParam, audioN
     const observer = new ResizeObserver(updatePos);
     observer.observe(element);
 
+    // Throttled position updates for module dragging (~5fps check is cheap)
+    let rafId: number;
+    let lastUpdate = 0;
+    const continuousUpdate = () => {
+      const now = performance.now();
+      if (now - lastUpdate > 200) {
+        updatePos();
+        lastUpdate = now;
+      }
+      rafId = requestAnimationFrame(continuousUpdate);
+    };
+    rafId = requestAnimationFrame(continuousUpdate);
+
     const handleScroll = () => updatePos();
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', handleScroll);
     };
   }, [updatePos]);
@@ -118,3 +132,5 @@ export default function JackPort({ id, moduleId, type, label, audioParam, audioN
     </div>
   );
 }
+
+export default React.memo(JackPortComponent);

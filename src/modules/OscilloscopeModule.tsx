@@ -41,7 +41,17 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
     const ctx2d = canvas.getContext('2d');
     if (!ctx2d) return;
 
+    let lastUpdate = 0;
+    const updateInterval = 33; // ~30fps
+
     const draw = () => {
+      const now = performance.now();
+      if (now - lastUpdate < updateInterval) {
+        animRef.current = requestAnimationFrame(draw);
+        return;
+      }
+      lastUpdate = now;
+
       const W = canvas.width;
       const H = canvas.height;
 

@@ -147,8 +147,9 @@ function KnobComponent({
       dragStart.current = null;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    // Use passive listeners for better performance
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('mouseup', handleMouseUp, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);

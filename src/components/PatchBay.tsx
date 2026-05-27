@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { usePatchStore } from '../store/synthStore';
 
-export default function PatchBay() {
+function PatchBayComponent() {
   const { cables, jacks, draggingFrom, mousePos, setMousePos, cancelDrag, removeCable } = usePatchStore();
 
   useEffect(() => {
@@ -19,17 +19,19 @@ export default function PatchBay() {
     };
   }, [setMousePos, cancelDrag]);
 
-  const getCablePath = (x1: number, y1: number, x2: number, y2: number) => {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const sag = Math.min(120, dist * 0.4);
-    const cp1x = x1 + dx * 0.25;
-    const cp1y = y1 + sag;
-    const cp2x = x2 - dx * 0.25;
-    const cp2y = y2 + sag;
-    return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
-  };
+  const getCablePath = useMemo(() => {
+    return (x1: number, y1: number, x2: number, y2: number) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const sag = Math.min(120, dist * 0.4);
+      const cp1x = x1 + dx * 0.25;
+      const cp1y = y1 + sag;
+      const cp2x = x2 - dx * 0.25;
+      const cp2y = y2 + sag;
+      return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+    };
+  }, []);
 
   return (
     <svg
@@ -141,3 +143,5 @@ export default function PatchBay() {
     </svg>
   );
 }
+const PatchBay = React.memo(PatchBayComponent);
+export default PatchBay;

@@ -60,31 +60,37 @@ function LFOModuleComponent({ id }: LFOModuleProps) {
     if (oscRef.current) oscRef.current.type = waveform;
   }, [waveform]);
 
-  // Visual LFO display
-  const [phase, setPhase] = useState(0);
+  // Visual LFO display - use ref to avoid re-renders
+  const phaseRef = useRef(0);
+  const [phaseUpdate, setPhaseUpdate] = useState(0);
   useEffect(() => {
     let animFrame: number;
+    let updateCount = 0;
     const tick = () => {
-      setPhase((p) => (p + rate * 0.016) % (Math.PI * 2));
+      phaseRef.current = (phaseRef.current + rate * 0.016) % (Math.PI * 2);
+      // Throttle state updates to every 6 frames (~60fps even if RAF runs faster)
+      if (++updateCount % 6 === 0) {
+        setPhaseUpdate((u) => u + 1);
+      }
       animFrame = requestAnimationFrame(tick);
     };
     animFrame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animFrame);
   }, [rate]);
 
-  // Memoize waveform points calculation
+  // Memoize waveform points calculation - use phaseRef instead of phase state
   const points = useMemo(() => {
     return Array.from({ length: 40 }, (_, i) => {
       const x = (i / 39) * 150 + 4;
       let y: number;
-      const t = (i / 39) * Math.PI * 4 + phase;
+      const t = (i / 39) * Math.PI * 4 + phaseRef.current;
       if (waveform === 'sine') y = Math.sin(t);
       else if (waveform === 'square') y = Math.sign(Math.sin(t));
       else if (waveform === 'sawtooth') y = ((t % (Math.PI * 2)) / (Math.PI * 2)) * 2 - 1;
       else y = Math.abs(((t % (Math.PI * 2)) / (Math.PI * 2)) * 2 - 1) * 2 - 1;
       return `${x},${20 + y * 14 * depth}`;
     }).join(' ');
-  }, [waveform, phase, depth]);
+  }, [waveform, depth, phaseUpdate]);
 
   return (
     <ModulePanel title="LFO" subtitle="Low Freq Oscillator" accentColor={accentColor} width={175} badge="MOD">

@@ -34,7 +34,7 @@ function OutputModuleComponent({ id }: OutputModuleProps) {
     let frame: number;
     let toggle = false;
     let lastUpdate = 0;
-    const updateInterval = 16; // ~60fps
+    const updateInterval = 33; // ~30fps
 
     const tick = () => {
       const now = performance.now();
