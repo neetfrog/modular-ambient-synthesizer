@@ -298,6 +298,25 @@ const PRESETS: Preset[] = [
       { id: 'c7', fromJackId: 'reverb1_wet_out', toJackId: 'output1_r_in', color: '#a78bfa' },
     ],
   },
+  {
+    name: 'POLY CHORD',
+    description: 'Play chords! Press multiple keyboard keys for polyphonic harmony. Set Voices knob on VCO to 6+',
+    emoji: '🎹✨',
+    modules: [
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 260, y: 24 },
+      { id: 'adsr1', type: 'adsr', x: 500, y: 24 },
+      { id: 'vca1', type: 'vca', x: 24, y: 320 },
+      { id: 'output1', type: 'output', x: 260, y: 320 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'keyboard1_gate_out', toJackId: 'adsr1_gate_in', color: '#fbbf24' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#f97316' },
+      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
+      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+    ],
+  },
 ];
 
 function renderModule(mod: ModuleInstance) {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ModulePanel from '../components/ModulePanel';
 import { ModuleIOSection } from '../components/ModuleIOSection';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { broadcastNoteEvent } from './PolyVCOModule';
 
 interface KeyboardModuleProps {
   id: string;
@@ -81,6 +82,9 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
       const next = new Set([...prev, note]);
       setCurrentNote(note);
       
+      // Broadcast note-on event for polyphonic synths
+      broadcastNoteEvent({ type: 'noteOn', note, frequency: NOTE_FREQUENCIES[note] });
+      
       // Update CV output to note frequency with smooth glide
       if (cvOutRef.current) {
         const now = engine.ctx.currentTime;
@@ -108,6 +112,9 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
     setActiveNotes((prev) => {
       const next = new Set(prev);
       next.delete(note);
+      
+      // Broadcast note-off event for polyphonic synths
+      broadcastNoteEvent({ type: 'noteOff', note, frequency: NOTE_FREQUENCIES[note] });
       
       // Close gate when last key released - ramp down to avoid click
       if (next.size === 0 && gateOutRef.current) {
