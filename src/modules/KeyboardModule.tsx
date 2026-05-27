@@ -214,7 +214,7 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
         </div>
 
         {/* Piano keyboard - 2 octaves (C3 and C4) */}
-        <div className="relative mx-auto" style={{ width: '100%', height: 90, background: '#1a1a2e', borderRadius: '4px', padding: '4px', overflow: 'hidden' }}>
+        <div className="relative mx-auto" style={{ width: '100%', height: 90, background: '#1a1a2e', borderRadius: '4px', padding: '4px', overflow: 'hidden', touchAction: 'manipulation' }}>
           {/* White keys - 14 keys for 2 octaves */}
           <div className="flex gap-0" style={{ height: '100%' }}>
             {(['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'] as const).map((note, idx) => (
@@ -223,6 +223,8 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
                 onMouseDown={() => playNote(note as NoteName)}
                 onMouseUp={() => stopNote(note as NoteName)}
                 onMouseLeave={() => stopNote(note as NoteName)}
+                onTouchStart={() => playNote(note as NoteName)}
+                onTouchEnd={() => stopNote(note as NoteName)}
                 style={{
                   flex: 1,
                   height: '100%',
@@ -267,6 +269,8 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
                 onMouseDown={() => playNote(note)}
                 onMouseUp={() => stopNote(note)}
                 onMouseLeave={() => stopNote(note)}
+                onTouchStart={() => playNote(note)}
+                onTouchEnd={() => stopNote(note)}
                 style={{
                   position: 'absolute',
                   left: `calc((${whiteIdx} / 14) * 100% - 13px)`,

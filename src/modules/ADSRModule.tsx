@@ -81,9 +81,6 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     
     // Decay: ramp from 1 to sustain level
     gain.linearRampToValueAtTime(sustain, now + Math.max(attack, 0.001) + Math.max(decay, 0.001));
-    
-    // Hold sustain value until release
-    console.log('ADSR triggered:', { attack, decay, sustain, release });
   }, [attack, decay, sustain, engine]);
 
   const releaseEnvelope = useCallback(() => {
@@ -97,8 +94,6 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     const currentValue = gain.value;
     gain.setValueAtTime(currentValue, now);
     gain.linearRampToValueAtTime(0, now + Math.max(release, 0.001));
-    
-    console.log('ADSR released:', { release, currentValue });
   }, [release]);
 
   // Monitor gate input for incoming audio to auto-trigger envelope
