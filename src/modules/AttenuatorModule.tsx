@@ -41,31 +41,25 @@ function AttenuatorModuleComponent({ id }: AttenuatorModuleProps) {
   }, [attenuation]);
 
   return (
-    <ModulePanel title="ATTEN" subtitle="CV Attenuator" accentColor={accentColor} width={140} badge="UTIL">
-      <div className="space-y-3">
-        <div className="text-center px-2 py-2 rounded bg-black/50 border border-blue-900">
-          <div className="text-2xl font-bold text-blue-400">{Math.round(attenuation * 100)}%</div>
-          <div className="text-gray-500 text-xs">Output Level</div>
-        </div>
-
-        <Knob
-          value={attenuation}
-          min={0}
-          max={1}
-          onChange={setAttenuation}
-          label="Amount"
-          unit="%"
-          size="md"
-          color={accentColor}
-        />
-      </div>
+    <ModulePanel title="ATTEN" subtitle="Attenuator" accentColor={accentColor} width={120} badge="UTIL">
+      <Knob
+        value={attenuation}
+        min={0}
+        max={1}
+        onChange={setAttenuation}
+        label="Amt"
+        unit="%"
+        size="sm"
+        color={accentColor}
+      />
+      <div className="text-center text-xs text-blue-400 font-bold mt-1">{Math.round(attenuation * 100)}%</div>
 
       <ModuleIOSection
         ports={[
           { id: `${id}_in`, moduleId: id, type: 'input', label: 'IN', audioNode: inputRef.current ?? undefined },
           { id: `${id}_out`, moduleId: id, type: 'output', label: 'OUT', audioNode: outputRef.current ?? undefined },
         ]}
-        title="I/O"
+        title=""
       />
     </ModulePanel>
   );

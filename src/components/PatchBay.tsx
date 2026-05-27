@@ -6,15 +6,28 @@ function PatchBayComponent() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // Always track mouse position regardless of drag state
       setMousePos(e.clientX, e.clientY);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const currentDraggingFrom = usePatchStore.getState().draggingFrom;
+        if (currentDraggingFrom) {
+          e.preventDefault();
+        }
+        // Always update position during touch to show preview cable
+        setMousePos(e.touches[0].clientX, e.touches[0].clientY);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cancelDrag();
     };
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [setMousePos, cancelDrag]);

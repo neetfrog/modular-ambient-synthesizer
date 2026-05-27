@@ -119,6 +119,18 @@ function KnobComponent({
     [value]
   );
 
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.stopPropagation();
+      if (e.touches.length > 0) {
+        setIsDragging(true);
+        setShowTooltip(true);
+        dragStart.current = { y: e.touches[0].clientY, value };
+      }
+    },
+    [value]
+  );
+
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -141,7 +153,24 @@ function KnobComponent({
       onChange(DENORMALIZE(newNorm, min, max, logarithmic));
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!dragStart.current || e.touches.length === 0) return;
+      e.preventDefault();
+      const dy = dragStart.current.y - e.touches[0].clientY;
+      const sensitivity = 0.008;
+      const delta = dy * sensitivity;
+      const startNorm = NORMALIZE(dragStart.current.value, min, max, logarithmic);
+      const newNorm = Math.max(0, Math.min(1, startNorm + delta));
+      onChange(DENORMALIZE(newNorm, min, max, logarithmic));
+    };
+
     const handleMouseUp = () => {
+      setIsDragging(false);
+      setShowTooltip(false);
+      dragStart.current = null;
+    };
+
+    const handleTouchEnd = () => {
       setIsDragging(false);
       setShowTooltip(false);
       dragStart.current = null;
@@ -149,11 +178,15 @@ function KnobComponent({
 
     // Use passive listeners for better performance
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('mouseup', handleMouseUp, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, min, max, onChange, logarithmic]);
 
@@ -172,11 +205,12 @@ function KnobComponent({
           width={outer}
           height={outer}
           onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
           onDoubleClick={handleDoubleClick}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => !isDragging && setShowTooltip(false)}
           className={`cursor-ns-resize ${isDragging ? 'drop-shadow-lg' : ''}`}
-          style={{ filter: isDragging ? `drop-shadow(0 0 6px ${color})` : undefined }}
+          style={{ filter: isDragging ? `drop-shadow(0 0 6px ${color})` : undefined, touchAction: 'none' }}
         >
           {/* Track */}
           <circle

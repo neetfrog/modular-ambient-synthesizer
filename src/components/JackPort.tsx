@@ -12,7 +12,8 @@ interface JackPortProps {
 
 function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }: JackPortProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const { registerJack, unregisterJack, updateJackPosition, startDrag, completePatch, cables, draggingFrom } = usePatchStore();
+  const lastTouchTimeRef = useRef<number>(0);
+  const { registerJack, unregisterJack, updateJackPosition, startDrag, completePatch, cables, draggingFrom, removeJackCables } = usePatchStore();
 
   const isConnected = cables.some((c) => c.fromJackId === id || c.toJackId === id);
   const isDraggingFrom = draggingFrom === id;
@@ -75,7 +76,54 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (e.touches.length > 0) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTouchTimeRef.current < 300;
+      lastTouchTimeRef.current = now;
+
+      if (isDoubleTap && isConnected) {
+        // Double-tap to remove cable
+        removeJackCables(id);
+        return;
+      }
+
+      usePatchStore.getState().setMousePos(e.touches[0].clientX, e.touches[0].clientY);
+      if (draggingFrom) {
+        completePatch(id);
+      } else {
+        startDrag(id);
+        
+        // Set up touch tracking for this drag
+        const handleDragTouchMove = (moveEvent: TouchEvent) => {
+          if (moveEvent.touches.length > 0) {
+            moveEvent.preventDefault();
+            usePatchStore.getState().setMousePos(moveEvent.touches[0].clientX, moveEvent.touches[0].clientY);
+          }
+        };
+        
+        const handleDragTouchEnd = () => {
+          document.removeEventListener('touchmove', handleDragTouchMove, { passive: false } as EventListenerOptions);
+          document.removeEventListener('touchend', handleDragTouchEnd);
+          document.removeEventListener('touchcancel', handleDragTouchEnd);
+        };
+        
+        document.addEventListener('touchmove', handleDragTouchMove, { passive: false } as EventListenerOptions);
+        document.addEventListener('touchend', handleDragTouchEnd);
+        document.addEventListener('touchcancel', handleDragTouchEnd);
+      }
+    }
+  };
+
   const handleMouseUp = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (draggingFrom && draggingFrom !== id) {
+      completePatch(id);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
     e.stopPropagation();
     if (draggingFrom && draggingFrom !== id) {
       completePatch(id);
@@ -100,9 +148,12 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
             ? `0 0 6px ${connColor}88`
             : 'inset 0 1px 3px rgba(0,0,0,0.8)',
           transition: 'box-shadow 0.15s, border-color 0.15s',
+          touchAction: 'none',
         }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Inner ring */}
         <div

@@ -92,37 +92,20 @@ function ClockDividerModuleComponent({ id }: ClockDividerModuleProps) {
   }, []);
 
   return (
-    <ModulePanel title="CLOCK" subtitle="Divider" accentColor={accentColor} width={140} badge="UTIL">
-      <div className="space-y-2 text-xs">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="text-center px-2 py-1 rounded bg-black/50 border border-yellow-900">
-            <div className="font-bold text-yellow-400">÷1</div>
-            <div className="text-gray-500 text-xs">1x</div>
-          </div>
-          <div className="text-center px-2 py-1 rounded bg-black/50 border border-yellow-900">
-            <div className="font-bold text-yellow-400">÷2</div>
-            <div className="text-gray-500 text-xs">½x</div>
-          </div>
-          <div className="text-center px-2 py-1 rounded bg-black/50 border border-yellow-900">
-            <div className="font-bold text-yellow-400">÷4</div>
-            <div className="text-gray-500 text-xs">¼x</div>
-          </div>
-          <div className="text-center px-2 py-1 rounded bg-black/50 border border-yellow-900">
-            <div className="font-bold text-yellow-400">÷8</div>
-            <div className="text-gray-500 text-xs">⅛x</div>
-          </div>
-        </div>
+    <ModulePanel title="CLOCK" subtitle="Divider" accentColor={accentColor} width={120} badge="UTIL">
+      <div className="text-xs text-center px-2 py-1 rounded bg-black/50 border border-yellow-900 mb-2">
+        <div className="text-yellow-400 font-bold">÷1 ÷2 ÷4 ÷8</div>
       </div>
 
       <ModuleIOSection
         ports={[
-          { id: `${id}_clock_in`, moduleId: id, type: 'input', label: 'CLOCK', audioNode: clockInRef.current ?? undefined },
+          { id: `${id}_clock_in`, moduleId: id, type: 'input', label: 'IN', audioNode: clockInRef.current ?? undefined },
           { id: `${id}_div1_out`, moduleId: id, type: 'output', label: '÷1', audioNode: divisionOutputs.div1 ?? undefined },
           { id: `${id}_div2_out`, moduleId: id, type: 'output', label: '÷2', audioNode: divisionOutputs.div2 ?? undefined },
           { id: `${id}_div4_out`, moduleId: id, type: 'output', label: '÷4', audioNode: divisionOutputs.div4 ?? undefined },
           { id: `${id}_div8_out`, moduleId: id, type: 'output', label: '÷8', audioNode: divisionOutputs.div8 ?? undefined },
         ]}
-        title="I/O"
+        title=""
       />
     </ModulePanel>
   );

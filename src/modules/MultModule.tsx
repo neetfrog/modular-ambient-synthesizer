@@ -44,23 +44,20 @@ function MultModuleComponent({ id }: MultModuleProps) {
   }, []);
 
   return (
-    <ModulePanel title="MULT" subtitle="Signal Splitter" accentColor={accentColor} width={140} badge="UTIL">
-      <div className="space-y-2 text-center">
-        <div className="px-3 py-2 rounded bg-black/50 border border-pink-900">
-          <div className="text-xs text-gray-400">1 Input → 4 Outputs</div>
-          <div className="text-xs text-gray-500 mt-1">Send one signal everywhere</div>
-        </div>
+    <ModulePanel title="MULT" subtitle="Splitter" accentColor={accentColor} width={120} badge="UTIL">
+      <div className="text-xs text-center px-2 py-1 rounded bg-black/50 border border-pink-900">
+        <div className="text-pink-400 font-bold">1→4</div>
       </div>
 
       <ModuleIOSection
         ports={[
           { id: `${id}_in`, moduleId: id, type: 'input', label: 'IN', audioNode: inputRef.current ?? undefined },
-          { id: `${id}_out1`, moduleId: id, type: 'output', label: 'OUT1', audioNode: outputs.out1 ?? undefined },
-          { id: `${id}_out2`, moduleId: id, type: 'output', label: 'OUT2', audioNode: outputs.out2 ?? undefined },
-          { id: `${id}_out3`, moduleId: id, type: 'output', label: 'OUT3', audioNode: outputs.out3 ?? undefined },
-          { id: `${id}_out4`, moduleId: id, type: 'output', label: 'OUT4', audioNode: outputs.out4 ?? undefined },
+          { id: `${id}_out1`, moduleId: id, type: 'output', label: 'O1', audioNode: outputs.out1 ?? undefined },
+          { id: `${id}_out2`, moduleId: id, type: 'output', label: 'O2', audioNode: outputs.out2 ?? undefined },
+          { id: `${id}_out3`, moduleId: id, type: 'output', label: 'O3', audioNode: outputs.out3 ?? undefined },
+          { id: `${id}_out4`, moduleId: id, type: 'output', label: 'O4', audioNode: outputs.out4 ?? undefined },
         ]}
-        title="I/O"
+        title=""
       />
     </ModulePanel>
   );
