@@ -32,7 +32,7 @@ export default function JackPort({ id, moduleId, type, label, audioParam, audioN
     updateJackPosition(id, x, y);
   }, [id, updateJackPosition]);
 
-  // Use ResizeObserver for size changes + continuous RAF for smooth position updates during dragging
+  // Use ResizeObserver for layout changes only - no continuous RAF
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -41,20 +41,11 @@ export default function JackPort({ id, moduleId, type, label, audioParam, audioN
     const observer = new ResizeObserver(updatePos);
     observer.observe(element);
 
-    // Continuous position update via RAF for smooth cable tracking during module dragging
-    let rafId: number;
-    const continuousUpdate = () => {
-      updatePos();
-      rafId = requestAnimationFrame(continuousUpdate);
-    };
-    rafId = requestAnimationFrame(continuousUpdate);
-
     const handleScroll = () => updatePos();
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       observer.disconnect();
-      cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', handleScroll);
     };
   }, [updatePos]);

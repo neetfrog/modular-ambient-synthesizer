@@ -44,7 +44,7 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     osc.frequency.value = 110;
     osc.detune.value = 0;
     osc.connect(gain);
-    gain.gain.value = 1;
+    gain.gain.value = 0.35; // Reduce headroom for multiple oscillators
     fmGain.gain.value = 220;
     fmGain.connect(osc.frequency);
     pmGain.gain.value = 200;

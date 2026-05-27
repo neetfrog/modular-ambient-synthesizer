@@ -22,7 +22,7 @@ function VCAModuleComponent({ id }: VCAModuleProps) {
     const ctx = engine.ctx;
     const gain = ctx.createGain();
     const cvGain = ctx.createGain();
-    gain.gain.value = 0.7;
+    gain.gain.value = 0.5; // Reduce max output gain for headroom
     cvGain.gain.value = 1;
     cvGain.connect(gain.gain);
     gainRef.current = gain;

@@ -36,3 +36,5 @@ export const ModuleButton = React.memo(
 );
 
 ModuleButton.displayName = 'ModuleButton';
+
+export default ModuleButton;

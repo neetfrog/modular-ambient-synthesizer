@@ -15,11 +15,13 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
   const dryGainRef = useRef<GainNode | null>(null);
   const wetGainRef = useRef<GainNode | null>(null);
   const inputRef = useRef<GainNode | null>(null);
-  const [nodes, setNodes] = useState<{ input: GainNode; dry: GainNode; wet: GainNode } | null>(null);
+  const bypassRef = useRef<GainNode | null>(null);
+  const [nodes, setNodes] = useState<{ input: GainNode; dry: GainNode; wet: GainNode; bypass: GainNode } | null>(null);
 
   const [time, setTime] = useState(0.4);
   const [feedback, setFeedback] = useState(0.35);
   const [mix, setMix] = useState(0.5);
+  const [bypassed, setBypassed] = useState(false);
   const accentColor = '#fb923c';
 
   useEffect(() => {
@@ -29,6 +31,7 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
     const fb = ctx.createGain();
     const dry = ctx.createGain();
     const wet = ctx.createGain();
+    const bypass = ctx.createGain();
 
     delay.delayTime.value = 0.4;
     fb.gain.value = 0.35;
@@ -37,6 +40,7 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
 
     input.connect(dry);
     input.connect(delay);
+    input.connect(bypass);
     delay.connect(fb);
     fb.connect(delay);
     delay.connect(wet);
@@ -46,7 +50,8 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
     dryGainRef.current = dry;
     wetGainRef.current = wet;
     inputRef.current = input;
-    setNodes({ input, dry, wet });
+    bypassRef.current = bypass;
+    setNodes({ input, dry, wet, bypass });
 
     return () => {
       input.disconnect();
@@ -54,6 +59,7 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
       fb.disconnect();
       dry.disconnect();
       wet.disconnect();
+      bypass.disconnect();
     };
   }, []);
 
@@ -66,9 +72,9 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
   }, [feedback]);
 
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = 1 - mix;
-    if (wetGainRef.current) wetGainRef.current.gain.value = mix;
-  }, [mix]);
+    if (dryGainRef.current) dryGainRef.current.gain.value = bypassed ? 0 : 1 - mix;
+    if (wetGainRef.current) wetGainRef.current.gain.value = bypassed ? 0 : mix;
+  }, [mix, bypassed]);
 
   const tapTimes = useRef<number[]>([]);
   const handleTap = useCallback(() => {
@@ -129,20 +135,37 @@ function DelayModuleComponent({ id }: DelayModuleProps) {
         </svg>
       </div>
 
-      <button
-        onClick={handleTap}
-        className="w-full rounded py-1 mb-2 text-xs transition-all"
-        style={{
-          fontFamily: 'monospace',
-          background: '#0a0a18',
-          border: `1px solid ${accentColor}`,
-          color: accentColor,
-          letterSpacing: '0.1em',
-          cursor: 'pointer',
-        }}
-      >
-        ⏱ TAP TEMPO
-      </button>
+      <div className="flex gap-1 mb-2">
+        <button
+          onClick={handleTap}
+          className="flex-1 rounded py-1 text-xs transition-all"
+          style={{
+            fontFamily: 'monospace',
+            background: '#0a0a18',
+            border: `1px solid ${accentColor}`,
+            color: accentColor,
+            letterSpacing: '0.1em',
+            cursor: 'pointer',
+          }}
+        >
+          ⏱ TAP
+        </button>
+        <button
+          onClick={() => setBypassed(!bypassed)}
+          className="flex-1 rounded py-1 text-xs transition-all"
+          style={{
+            fontFamily: 'monospace',
+            background: bypassed ? `${accentColor}33` : '#0a0a18',
+            border: `1px solid ${bypassed ? accentColor : '#333355'}`,
+            color: bypassed ? accentColor : '#333355',
+            letterSpacing: '0.1em',
+            cursor: 'pointer',
+            boxShadow: bypassed ? `inset 0 0 8px ${accentColor}44` : 'none',
+          }}
+        >
+          {bypassed ? 'ON' : 'OFF'}
+        </button>
+      </div>
 
       <ModuleIOSection
         ports={[

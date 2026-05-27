@@ -27,11 +27,13 @@ function ReverbModuleComponent({ id }: ReverbModuleProps) {
   const dryGainRef = useRef<GainNode | null>(null);
   const wetGainRef = useRef<GainNode | null>(null);
   const inputGainRef = useRef<GainNode | null>(null);
-  const [nodes, setNodes] = useState<{ input: GainNode; dry: GainNode; wet: GainNode } | null>(null);
+  const bypassRef = useRef<GainNode | null>(null);
+  const [nodes, setNodes] = useState<{ input: GainNode; dry: GainNode; wet: GainNode; bypass: GainNode } | null>(null);
 
   const [roomSize, setRoomSize] = useState(2.5);
   const [decay, setDecay] = useState(3);
   const [mix, setMix] = useState(0.5);
+  const [bypassed, setBypassed] = useState(false);
   const accentColor = '#34d399';
 
   useEffect(() => {
@@ -40,6 +42,7 @@ function ReverbModuleComponent({ id }: ReverbModuleProps) {
     const dry = ctx.createGain();
     const wet = ctx.createGain();
     const reverb = ctx.createConvolver();
+    const bypass = ctx.createGain();
 
     input.gain.value = 1;
     dry.gain.value = 0.5;
@@ -48,19 +51,22 @@ function ReverbModuleComponent({ id }: ReverbModuleProps) {
 
     input.connect(dry);
     input.connect(reverb);
+    input.connect(bypass);
     reverb.connect(wet);
 
     inputGainRef.current = input;
     dryGainRef.current = dry;
     wetGainRef.current = wet;
     reverbRef.current = reverb;
-    setNodes({ input, dry, wet });
+    bypassRef.current = bypass;
+    setNodes({ input, dry, wet, bypass });
 
     return () => {
       input.disconnect();
       dry.disconnect();
       wet.disconnect();
       reverb.disconnect();
+      bypass.disconnect();
     };
   }, []);
 
@@ -78,9 +84,9 @@ function ReverbModuleComponent({ id }: ReverbModuleProps) {
   }, [roomSize, decay, engine.ctx]);
 
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = 1 - mix;
-    if (wetGainRef.current) wetGainRef.current.gain.value = mix;
-  }, [mix]);
+    if (dryGainRef.current) dryGainRef.current.gain.value = bypassed ? 0 : 1 - mix;
+    if (wetGainRef.current) wetGainRef.current.gain.value = bypassed ? 0 : mix;
+  }, [mix, bypassed]);
 
   // Memoize reverb visualization
   const reverbBars = useMemo(() => {
@@ -122,12 +128,28 @@ function ReverbModuleComponent({ id }: ReverbModuleProps) {
                 height={h * 2}
                 rx={1}
                 fill={accentColor}
-                opacity={0.1 + amplitude * 0.8}
+                opacity={bypassed ? 0.1 : 0.1 + amplitude * 0.8}
               />
             );
           })}
         </svg>
       </div>
+
+      <button
+        onClick={() => setBypassed(!bypassed)}
+        className="w-full rounded py-1 mb-3 text-xs transition-all"
+        style={{
+          fontFamily: 'monospace',
+          background: bypassed ? `${accentColor}33` : '#0a0a18',
+          border: `1px solid ${bypassed ? accentColor : '#333355'}`,
+          color: bypassed ? accentColor : '#333355',
+          letterSpacing: '0.1em',
+          cursor: 'pointer',
+          boxShadow: bypassed ? `inset 0 0 8px ${accentColor}44` : 'none',
+        }}
+      >
+        BYPASS: {bypassed ? 'ON' : 'OFF'}
+      </button>
 
       <ModuleIOSection
         ports={[
