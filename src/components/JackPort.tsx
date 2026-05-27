@@ -13,7 +13,11 @@ interface JackPortProps {
 function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }: JackPortProps) {
   const ref = useRef<HTMLDivElement>(null);
   const lastTouchTimeRef = useRef<number>(0);
-  const { registerJack, unregisterJack, updateJackPosition, startDrag, completePatch, cables, draggingFrom, removeJackCables } = usePatchStore();
+  const { registerJack, unregisterJack, updateJackPosition, startDrag, completePatch, removeJackCables } = usePatchStore((s) => 
+    ({ registerJack: s.registerJack, unregisterJack: s.unregisterJack, updateJackPosition: s.updateJackPosition, startDrag: s.startDrag, completePatch: s.completePatch, removeJackCables: s.removeJackCables })
+  );
+  const cables = usePatchStore((s) => s.cables);
+  const draggingFrom = usePatchStore((s) => s.draggingFrom);
 
   const isConnected = cables.some((c) => c.fromJackId === id || c.toJackId === id);
   const isDraggingFrom = draggingFrom === id;
@@ -33,7 +37,7 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
     updateJackPosition(id, x, y);
   }, [id, updateJackPosition]);
 
-  // Use ResizeObserver for layout changes + throttled RAF for position tracking during drags
+  // Use ResizeObserver + scroll events only (no continuous RAF polling)
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -42,25 +46,11 @@ function JackPortComponent({ id, moduleId, type, label, audioParam, audioNode }:
     const observer = new ResizeObserver(updatePos);
     observer.observe(element);
 
-    // Throttled position updates for module dragging (~5fps check is cheap)
-    let rafId: number;
-    let lastUpdate = 0;
-    const continuousUpdate = () => {
-      const now = performance.now();
-      if (now - lastUpdate > 200) {
-        updatePos();
-        lastUpdate = now;
-      }
-      rafId = requestAnimationFrame(continuousUpdate);
-    };
-    rafId = requestAnimationFrame(continuousUpdate);
-
     const handleScroll = () => updatePos();
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       observer.disconnect();
-      cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', handleScroll);
     };
   }, [updatePos]);

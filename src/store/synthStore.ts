@@ -26,6 +26,19 @@ interface PatchStore {
   getCablesForJack: (jackId: string) => PatchCable[];
 }
 
+// Memoized selectors to prevent unnecessary re-renders
+export const selectCables = (state: PatchStore) => state.cables;
+export const selectJacks = (state: PatchStore) => state.jacks;
+export const selectDraggingFrom = (state: PatchStore) => state.draggingFrom;
+export const selectMousePos = (state: PatchStore) => state.mousePos;
+export const selectCablesAndJacks = (state: PatchStore) => ({ cables: state.cables, jacks: state.jacks });
+export const selectDragState = (state: PatchStore) => ({
+  draggingFrom: state.draggingFrom,
+  mousePos: state.mousePos,
+  jacks: state.jacks,
+  cables: state.cables,
+});
+
 export const usePatchStore = create<PatchStore>((set, get) => ({
   cables: [],
   jacks: {},

@@ -4,7 +4,15 @@ import Knob from '../components/Knob';
 import ModulePanel from '../components/ModulePanel';
 import { ModuleIOSection } from '../components/ModuleIOSection';
 
+// Cache impulse responses to avoid regenerating on every parameter change
+const impulseCache = new Map<string, AudioBuffer>();
+
 function createImpulseResponse(ctx: AudioContext, duration: number, decay: number) {
+  const key = `${Math.round(duration * 100)}-${Math.round(decay * 100)}`;
+  if (impulseCache.has(key)) {
+    return impulseCache.get(key)!;
+  }
+
   const sampleRate = ctx.sampleRate;
   const length = sampleRate * duration;
   const impulse = ctx.createBuffer(2, length, sampleRate);
@@ -14,6 +22,7 @@ function createImpulseResponse(ctx: AudioContext, duration: number, decay: numbe
       channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
     }
   }
+  impulseCache.set(key, impulse);
   return impulse;
 }
 
@@ -84,9 +93,14 @@ function ReverbModuleComponent({ id }: ReverbModuleProps) {
   }, [roomSize, decay, engine.ctx]);
 
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = bypassed ? 0 : 1 - mix;
-    if (wetGainRef.current) wetGainRef.current.gain.value = bypassed ? 0 : mix;
-  }, [mix, bypassed]);
+    const now = engine.ctx.currentTime;
+    if (dryGainRef.current) {
+      dryGainRef.current.gain.setTargetAtTime(bypassed ? 0 : 1 - mix, now, 0.01);
+    }
+    if (wetGainRef.current) {
+      wetGainRef.current.gain.setTargetAtTime(bypassed ? 0 : mix, now, 0.01);
+    }
+  }, [mix, bypassed, engine.ctx]);
 
   // Memoize reverb visualization
   const reverbBars = useMemo(() => {

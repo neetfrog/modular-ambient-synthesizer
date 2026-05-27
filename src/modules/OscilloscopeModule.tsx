@@ -46,6 +46,9 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
   const gridCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animRef = useRef<number>(0);
   const inputGainRef = useRef<GainNode | null>(null);
+  // Reuse typed arrays instead of allocating new ones each frame
+  const timeDataRef = useRef<Uint8Array | null>(null);
+  const freqDataRef = useRef<Uint8Array | null>(null);
   const [inputNode, setInputNode] = useState<GainNode | null>(null);
 
   const [mode, setMode] = useState<'time' | 'freq'>('time');
@@ -104,7 +107,10 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
 
       if (mode === 'time') {
         const bufLen = analyser.frequencyBinCount;
-        const data = new Uint8Array(bufLen);
+        if (!timeDataRef.current || timeDataRef.current.length !== bufLen) {
+          timeDataRef.current = new Uint8Array(bufLen);
+        }
+        const data = timeDataRef.current;
         analyser.getByteTimeDomainData(data);
 
         ctx2d.beginPath();
@@ -121,7 +127,10 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
         ctx2d.shadowBlur = 0;
       } else {
         const bufLen = analyser.frequencyBinCount;
-        const data = new Uint8Array(bufLen);
+        if (!freqDataRef.current || freqDataRef.current.length !== bufLen) {
+          freqDataRef.current = new Uint8Array(bufLen);
+        }
+        const data = freqDataRef.current;
         analyser.getByteFrequencyData(data);
         const bars = 48;
         const step = Math.floor(bufLen / bars);
