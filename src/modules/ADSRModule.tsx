@@ -105,6 +105,8 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     const threshold = 100; // Detect when signal crosses this level (0-255 range)
     let stableCount = 0;
     let lastStableState = false;
+    let hasEverSeenGate = false; // Track if we've ever detected a gate signal
+    let silenceCount = 0; // Track frames of silence
     
     const checkGateSignal = () => {
       // Use time-domain data to detect DC levels (keyboard gate signal)
@@ -120,22 +122,32 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
       const average = sum / dataArray.length;
       const hasGate = average > threshold / 2; // Adjusted threshold for time-domain
       
+      // Track if we've ever seen a real gate signal
+      if (hasGate && average > 80) {
+        hasEverSeenGate = true;
+        silenceCount = 0;
+      } else if (average < 30) {
+        silenceCount++;
+      }
+      
+      // Only consider gate-off if we previously saw a gate-on
+      // and have been silent for several frames (to distinguish disconnect from gate release)
+      const effectiveHasGate = hasGate || silenceCount < 6;
+      
       // Debounce: require signal to be stable for 3 frames before triggering
-      if (hasGate === lastStableState) {
+      if (effectiveHasGate === lastStableState) {
         stableCount++;
       } else {
         stableCount = 0;
-        lastStableState = hasGate;
+        lastStableState = effectiveHasGate;
       }
       
-      const stableHasGate = stableCount >= 3 ? hasGate : lastGateStateRef.current;
-      
       // Trigger/release based on stable gate signal change
-      if (stableCount >= 3) {
-        if (stableHasGate && !lastGateStateRef.current) {
+      if (stableCount >= 3 && hasEverSeenGate) {
+        if (effectiveHasGate && !lastGateStateRef.current) {
           triggerEnvelope();
           lastGateStateRef.current = true;
-        } else if (!stableHasGate && lastGateStateRef.current) {
+        } else if (!effectiveHasGate && lastGateStateRef.current) {
           releaseEnvelope();
           lastGateStateRef.current = false;
         }

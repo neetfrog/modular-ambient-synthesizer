@@ -94,7 +94,7 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
       // Open gate when first key pressed - ramp up to avoid click
       if (prev.size === 0 && gateOutRef.current) {
         const now = engine.ctx.currentTime;
-        const attackTime = 0.005; // 5ms attack to avoid click
+        const attackTime = 0.02; // 20ms attack to avoid click
         gateOutRef.current.gain.cancelScheduledValues(now);
         gateOutRef.current.gain.setValueAtTime(0, now);
         gateOutRef.current.gain.linearRampToValueAtTime(1, now + attackTime);
@@ -112,7 +112,7 @@ function KeyboardModuleComponent({ id, label = 'KEYBOARD', accentColor = '#38bdf
       // Close gate when last key released - ramp down to avoid click
       if (next.size === 0 && gateOutRef.current) {
         const now = engine.ctx.currentTime;
-        const releaseClickTime = 0.005; // 5ms to avoid click on release
+        const releaseClickTime = 0.02; // 20ms to avoid click on release
         gateOutRef.current.gain.cancelScheduledValues(now);
         gateOutRef.current.gain.setValueAtTime(gateOutRef.current.gain.value, now);
         gateOutRef.current.gain.linearRampToValueAtTime(0, now + releaseClickTime);

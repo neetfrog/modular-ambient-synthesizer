@@ -26,11 +26,26 @@ interface ModuleInstance {
   type: string;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
 }
 
 const DEFAULT_MODULES: ModuleInstance[] = [
   { id: 'output1', type: 'output', x: 24, y: 24 },
 ];
+
+// Get default dimensions for a module type
+const getModuleDimensions = (mod: ModuleInstance): { w: number; h: number } => {
+  if (mod.width && mod.height) return { w: mod.width, h: mod.height };
+  
+  // Keyboard is wider than other modules
+  if (mod.type === 'keyboard') {
+    return { w: 520, h: 280 };
+  }
+  
+  // Default dimensions for other modules
+  return { w: 200, h: 350 };
+};
 
 interface PresetModule {
   id: string;
@@ -346,19 +361,26 @@ export default function App() {
     setStarted(true);
   };
 
-  const handleModuleMouseDown = useCallback((e: React.MouseEvent, id: string) => {
-    if ((e.target as HTMLElement).closest('[data-nondrag]')) return;
-    e.preventDefault();
+  const handleModuleStartDrag = useCallback((clientX: number, clientY: number, id: string, element: HTMLElement) => {
+    if (element.closest('[data-nondrag]')) return;
     const mod = modules.find((m) => m.id === id);
     if (!mod) return;
-    setDragging({ id, startX: e.clientX, startY: e.clientY, origX: mod.x, origY: mod.y });
+    setDragging({ id, startX: clientX, startY: clientY, origX: mod.x, origY: mod.y });
   }, [modules]);
+
+  const handleModuleMouseDown = useCallback((e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    handleModuleStartDrag(e.clientX, e.clientY, id, e.target as HTMLElement);
+  }, [handleModuleStartDrag]);
+
+  const handleModuleTouchStart = useCallback((e: React.TouchEvent, id: string) => {
+    const touch = e.touches[0];
+    handleModuleStartDrag(touch.clientX, touch.clientY, id, e.target as HTMLElement);
+  }, [handleModuleStartDrag]);
 
   useEffect(() => {
     if (!dragging) return;
     
-    const MODULE_WIDTH = 200;
-    const MODULE_HEIGHT = 350;
     const PADDING = 20;
     
     const checkCollision = (rect1: any, rect2: any) => {
@@ -370,9 +392,11 @@ export default function App() {
       );
     };
     
-    const handleMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragging.startX;
-      const dy = e.clientY - dragging.startY;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
+      const dx = clientX - dragging.startX;
+      const dy = clientY - dragging.startY;
       
       setModules((prev) => {
         const originalModule = prev.find((m) => m.id === dragging.id);
@@ -403,14 +427,16 @@ export default function App() {
             for (const other of modules) {
               if (other.id === mod.id) continue;
               
-              const modRect = { x: currentX, y: currentY, w: MODULE_WIDTH, h: MODULE_HEIGHT };
-              const otherRect = { x: other.x, y: other.y, w: MODULE_WIDTH, h: MODULE_HEIGHT };
+              const modDims = getModuleDimensions(mod);
+              const otherDims = getModuleDimensions(other);
+              const modRect = { x: currentX, y: currentY, w: modDims.w, h: modDims.h };
+              const otherRect = { x: other.x, y: other.y, w: otherDims.w, h: otherDims.h };
               
               if (checkCollision(modRect, otherRect)) {
                 collisionsFound = true;
                 // Push away from the other module
-                const dx = currentX + MODULE_WIDTH / 2 - (other.x + MODULE_WIDTH / 2);
-                const dy = currentY + MODULE_HEIGHT / 2 - (other.y + MODULE_HEIGHT / 2);
+                const dx = currentX + modDims.w / 2 - (other.x + otherDims.w / 2);
+                const dy = currentY + modDims.h / 2 - (other.y + otherDims.h / 2);
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                 const pushDist = 15;
                 
@@ -430,9 +456,13 @@ export default function App() {
     const handleUp = () => setDragging(null);
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
+    window.addEventListener('touchmove', handleMove as any);
+    window.addEventListener('touchend', handleUp);
     return () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchmove', handleMove as any);
+      window.removeEventListener('touchend', handleUp);
     };
   }, [dragging]);
 
@@ -468,16 +498,66 @@ export default function App() {
 
   const alignModules = () => {
     const COLS = 3;
-    const SPACING_X = 250;
-    const SPACING_Y = 380;
+    const SPACING_X = 350;
+    const SPACING_Y = 550;
+    const PADDING = 20;
+
+    const checkCollision = (rect1: any, rect2: any) => {
+      return !(
+        rect1.x + rect1.w + PADDING < rect2.x ||
+        rect2.x + rect2.w + PADDING < rect1.x ||
+        rect1.y + rect1.h + PADDING < rect2.y ||
+        rect2.y + rect2.h + PADDING < rect1.y
+      );
+    };
     
-    setModules((prev) =>
-      prev.map((mod, idx) => ({
+    setModules((prev) => {
+      // First, place modules in grid positions
+      let modules = prev.map((mod, idx) => ({
         ...mod,
         x: (idx % COLS) * SPACING_X,
         y: Math.floor(idx / COLS) * SPACING_Y,
-      }))
-    );
+      }));
+
+      // Then iteratively resolve collisions until stable
+      let collisionsFound = true;
+      let iterations = 0;
+      while (collisionsFound && iterations < 10) {
+        collisionsFound = false;
+        iterations++;
+        
+        modules = modules.map((mod) => {
+          let currentX = mod.x;
+          let currentY = mod.y;
+          
+          // Check collision with all other modules
+          for (const other of modules) {
+            if (other.id === mod.id) continue;
+            
+            const modDims = getModuleDimensions(mod);
+            const otherDims = getModuleDimensions(other);
+            const modRect = { x: currentX, y: currentY, w: modDims.w, h: modDims.h };
+            const otherRect = { x: other.x, y: other.y, w: otherDims.w, h: otherDims.h };
+            
+            if (checkCollision(modRect, otherRect)) {
+              collisionsFound = true;
+              // Push away from the other module
+              const dx = currentX + modDims.w / 2 - (other.x + otherDims.w / 2);
+              const dy = currentY + modDims.h / 2 - (other.y + otherDims.h / 2);
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              const pushDist = 25;
+              
+              currentX = Math.max(0, currentX + (dx / dist) * pushDist);
+              currentY = Math.max(0, currentY + (dy / dist) * pushDist);
+            }
+          }
+          
+          return { ...mod, x: currentX, y: currentY };
+        });
+      }
+      
+      return modules;
+    });
   };
 
   // Canvas size
@@ -878,8 +958,10 @@ export default function App() {
                   border: '1px solid #1a1a30',
                   borderBottom: 'none',
                   height: 18,
+                  touchAction: 'manipulation',
                 }}
                 onMouseDown={(e) => handleModuleMouseDown(e, mod.id)}
+                onTouchStart={(e) => handleModuleTouchStart(e, mod.id)}
               >
                 <div className="flex gap-1">
                   {[0, 1, 2].map((i) => (

@@ -62,8 +62,14 @@ function OutputModuleComponent({ id }: OutputModuleProps) {
   }, []);
 
   useEffect(() => {
-    if (inputGainRef.current)
-      inputGainRef.current.gain.setTargetAtTime(isOn ? volume : 0, engine.ctx.currentTime, 0.05);
+    if (inputGainRef.current) {
+      const now = engine.ctx.currentTime;
+      const rampTime = 0.02; // 20ms linear ramp
+      const targetValue = isOn ? volume : 0;
+      inputGainRef.current.gain.cancelScheduledValues(now);
+      inputGainRef.current.gain.setValueAtTime(inputGainRef.current.gain.value, now);
+      inputGainRef.current.gain.linearRampToValueAtTime(targetValue, now + rampTime);
+    }
   }, [volume, isOn, engine.ctx]);
 
   const toggleOutput = useCallback(() => {

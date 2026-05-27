@@ -75,14 +75,15 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     
     const now = engine.ctx.currentTime;
     const clampedFreq = Math.max(freq, 20);
+    const rampTime = 0.015; // 15ms linear ramp for smooth frequency changes
     
     oscRef.current.frequency.cancelScheduledValues(now);
     oscRef.current.frequency.setValueAtTime(oscRef.current.frequency.value, now);
-    oscRef.current.frequency.setTargetAtTime(clampedFreq, now, 0.02);
+    oscRef.current.frequency.linearRampToValueAtTime(clampedFreq, now + rampTime);
     
     fmGainRef.current.gain.cancelScheduledValues(now);
     fmGainRef.current.gain.setValueAtTime(fmGainRef.current.gain.value, now);
-    fmGainRef.current.gain.setTargetAtTime(clampedFreq * 2, now, 0.02);
+    fmGainRef.current.gain.linearRampToValueAtTime(clampedFreq * 2, now + rampTime);
   }, [freq, engine]);
 
   useEffect(() => {
@@ -90,10 +91,11 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     
     detuneRef.current = detune;
     const now = engine.ctx.currentTime;
+    const rampTime = 0.015; // 15ms linear ramp
     
     oscRef.current.detune.cancelScheduledValues(now);
     oscRef.current.detune.setValueAtTime(oscRef.current.detune.value, now);
-    oscRef.current.detune.setTargetAtTime(detune, now, 0.02);
+    oscRef.current.detune.linearRampToValueAtTime(detune, now + rampTime);
   }, [detune, engine]);
 
   useEffect(() => {
@@ -107,10 +109,11 @@ function VCOModuleComponent({ id, label = 'VCO-1', accentColor = '#f97316' }: VC
     
     const now = engine.ctx.currentTime;
     const targetValue = isRunning ? 0.35 : 0;
+    const rampTime = 0.02; // 20ms linear ramp for smooth on/off
     
     gainRef.current.gain.cancelScheduledValues(now);
     gainRef.current.gain.setValueAtTime(gainRef.current.gain.value, now);
-    gainRef.current.gain.setTargetAtTime(targetValue, now, 0.02);
+    gainRef.current.gain.linearRampToValueAtTime(targetValue, now + rampTime);
   }, [isRunning, engine]);
 
   const handleToggle = useCallback(() => {

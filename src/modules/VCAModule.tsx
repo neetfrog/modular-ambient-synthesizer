@@ -78,7 +78,10 @@ function VCAModuleComponent({ id }: VCAModuleProps) {
   useEffect(() => {
     if (levelGainRef.current) {
       const now = engine.ctx.currentTime;
-      levelGainRef.current.gain.setTargetAtTime(level, now, 0.02);
+      const rampTime = 0.015; // 15ms linear ramp
+      levelGainRef.current.gain.cancelScheduledValues(now);
+      levelGainRef.current.gain.setValueAtTime(levelGainRef.current.gain.value, now);
+      levelGainRef.current.gain.linearRampToValueAtTime(level, now + rampTime);
     }
   }, [level, engine.ctx]);
 
