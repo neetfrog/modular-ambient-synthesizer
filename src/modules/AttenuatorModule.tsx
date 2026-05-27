@@ -41,7 +41,7 @@ function AttenuatorModuleComponent({ id }: AttenuatorModuleProps) {
   }, [attenuation]);
 
   return (
-    <ModulePanel title="ATTEN" subtitle="Attenuator" accentColor={accentColor} width={120} badge="UTIL">
+    <ModulePanel title="ATTEN" subtitle="Attenuator" accentColor={accentColor} badge="UTIL">
       <Knob
         value={attenuation}
         min={0}

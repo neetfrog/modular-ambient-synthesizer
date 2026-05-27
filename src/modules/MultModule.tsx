@@ -44,7 +44,7 @@ function MultModuleComponent({ id }: MultModuleProps) {
   }, []);
 
   return (
-    <ModulePanel title="MULT" subtitle="Splitter" accentColor={accentColor} width={120} badge="UTIL">
+    <ModulePanel title="MULT" subtitle="Splitter" accentColor={accentColor} badge="UTIL">
       <div className="text-xs text-center px-2 py-1 rounded bg-black/50 border border-pink-900">
         <div className="text-pink-400 font-bold">1→4</div>
       </div>

@@ -92,7 +92,7 @@ function ClockDividerModuleComponent({ id }: ClockDividerModuleProps) {
   }, []);
 
   return (
-    <ModulePanel title="CLOCK" subtitle="Divider" accentColor={accentColor} width={120} badge="UTIL">
+    <ModulePanel title="CLOCK" subtitle="Divider" accentColor={accentColor} badge="UTIL">
       <div className="text-xs text-center px-2 py-1 rounded bg-black/50 border border-yellow-900 mb-2">
         <div className="text-yellow-400 font-bold">÷1 ÷2 ÷4 ÷8</div>
       </div>
