@@ -47,6 +47,15 @@ const getModuleDimensions = (mod: ModuleInstance): { w: number; h: number } => {
   return { w: 200, h: 350 };
 };
 
+const MODULE_GRID_Y = 38;
+const MODULE_SLOT_SPACING = 280;
+const MODULE_LEFT_PADDING = 24;
+
+const getSlotX = (slotIndex: number) => MODULE_LEFT_PADDING + slotIndex * MODULE_SLOT_SPACING;
+const getClosestSlotIndex = (x: number, moduleCount: number) => {
+  return Math.min(Math.max(0, Math.round((x - MODULE_LEFT_PADDING) / MODULE_SLOT_SPACING)), Math.max(0, moduleCount - 1));
+};
+
 interface PresetModule {
   id: string;
   type: string;
@@ -81,14 +90,16 @@ const PRESETS: Preset[] = [
     description: 'Oscillator through filter into output',
     emoji: '⊞',
     modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
-      { id: 'output1', type: 'output', x: 500, y: 24 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 560, y: 24 },
+      { id: 'vcf1', type: 'vcf', x: 860, y: 24 },
+      { id: 'output1', type: 'output', x: 1160, y: 24 },
     ],
     cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
-      { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
+      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
     ],
   },
   {
@@ -96,16 +107,18 @@ const PRESETS: Preset[] = [
     description: 'LFO sweeps filter cutoff on filtered oscillator',
     emoji: '◈',
     modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'lfo1', type: 'lfo', x: 260, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 500, y: 24 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 560, y: 24 },
+      { id: 'lfo1', type: 'lfo', x: 860, y: 24 },
+      { id: 'vcf1', type: 'vcf', x: 1160, y: 24 },
       { id: 'output1', type: 'output', x: 24, y: 320 },
     ],
     cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
-      { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
-      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
+      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
+      { id: 'c5', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
     ],
   },
   {
@@ -113,18 +126,20 @@ const PRESETS: Preset[] = [
     description: 'LFO-modulated filter with reverb tail',
     emoji: '◈☁',
     modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'lfo1', type: 'lfo', x: 260, y: 24 },
-      { id: 'vcf1', type: 'vcf', x: 500, y: 24 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 560, y: 24 },
+      { id: 'lfo1', type: 'lfo', x: 860, y: 24 },
+      { id: 'vcf1', type: 'vcf', x: 1160, y: 24 },
       { id: 'reverb1', type: 'reverb', x: 24, y: 320 },
       { id: 'output1', type: 'output', x: 260, y: 320 },
     ],
     cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
-      { id: 'c3', fromJackId: 'vcf1_out', toJackId: 'reverb1_in', color: '#4ade80' },
-      { id: 'c4', fromJackId: 'reverb1_dry_out', toJackId: 'output1_l_in', color: '#34d399' },
-      { id: 'c5', fromJackId: 'reverb1_wet_out', toJackId: 'output1_r_in', color: '#a78bfa' },
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
+      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'reverb1_in', color: '#4ade80' },
+      { id: 'c5', fromJackId: 'reverb1_dry_out', toJackId: 'output1_l_in', color: '#34d399' },
+      { id: 'c6', fromJackId: 'reverb1_wet_out', toJackId: 'output1_r_in', color: '#a78bfa' },
     ],
   },
   {
@@ -132,16 +147,19 @@ const PRESETS: Preset[] = [
     description: 'Two oscillators blended together',
     emoji: '∿∿',
     modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'vco2', type: 'vco2', x: 260, y: 24 },
-      { id: 'mixer1', type: 'mixer', x: 500, y: 24 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 560, y: 24 },
+      { id: 'vco2', type: 'vco2', x: 860, y: 24 },
+      { id: 'mixer1', type: 'mixer', x: 1160, y: 24 },
       { id: 'output1', type: 'output', x: 24, y: 320 },
     ],
     cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'mixer1_ch1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'vco2_out', toJackId: 'mixer1_ch2_in', color: '#fb923c' },
-      { id: 'c3', fromJackId: 'mixer1_out', toJackId: 'output1_l_in', color: '#fbbf24' },
-      { id: 'c4', fromJackId: 'mixer1_out', toJackId: 'output1_r_in', color: '#fbbf24' },
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'keyboard1_cv_out', toJackId: 'vco2_fm_in', color: '#38bdf8' },
+      { id: 'c3', fromJackId: 'vco1_out', toJackId: 'mixer1_ch1_in', color: '#ff9500' },
+      { id: 'c4', fromJackId: 'vco2_out', toJackId: 'mixer1_ch2_in', color: '#fb923c' },
+      { id: 'c5', fromJackId: 'mixer1_out', toJackId: 'output1_l_in', color: '#fbbf24' },
+      { id: 'c6', fromJackId: 'mixer1_out', toJackId: 'output1_r_in', color: '#fbbf24' },
     ],
   },
   {
@@ -149,14 +167,16 @@ const PRESETS: Preset[] = [
     description: 'Oscillator with echo repeats',
     emoji: '∿♪',
     modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'delay1', type: 'delay', x: 260, y: 24 },
-      { id: 'output1', type: 'output', x: 500, y: 24 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 560, y: 24 },
+      { id: 'delay1', type: 'delay', x: 860, y: 24 },
+      { id: 'output1', type: 'output', x: 1160, y: 24 },
     ],
     cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'delay1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'delay1_dry_out', toJackId: 'output1_l_in', color: '#fb923c' },
-      { id: 'c3', fromJackId: 'delay1_wet_out', toJackId: 'output1_r_in', color: '#fb923c' },
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'delay1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'delay1_dry_out', toJackId: 'output1_l_in', color: '#fb923c' },
+      { id: 'c4', fromJackId: 'delay1_wet_out', toJackId: 'output1_r_in', color: '#fb923c' },
     ],
   },
   {
@@ -164,14 +184,16 @@ const PRESETS: Preset[] = [
     description: 'Test Mult: VCO split to 2 outputs',
     emoji: '∿✕',
     modules: [
-      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-      { id: 'mult1', type: 'mult', x: 260, y: 24 },
-      { id: 'output1', type: 'output', x: 500, y: 24 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 560, y: 24 },
+      { id: 'mult1', type: 'mult', x: 860, y: 24 },
+      { id: 'output1', type: 'output', x: 1160, y: 24 },
     ],
     cables: [
-      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'mult1_in', color: '#ff9500' },
-      { id: 'c2', fromJackId: 'mult1_out1', toJackId: 'output1_l_in', color: '#fb923c' },
-      { id: 'c3', fromJackId: 'mult1_out2', toJackId: 'output1_r_in', color: '#fb923c' },
+      { id: 'c1', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'mult1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'mult1_out1', toJackId: 'output1_l_in', color: '#fb923c' },
+      { id: 'c4', fromJackId: 'mult1_out2', toJackId: 'output1_r_in', color: '#fb923c' },
     ],
   },
   {
@@ -179,11 +201,12 @@ const PRESETS: Preset[] = [
     description: 'Rich 8-bit melody: dual VCOs filtered with LFO wobble (click sequencer steps)',
     emoji: '8️⃣',
     modules: [
-      { id: 'seq1', type: 'seq', x: 24, y: 24 },
-      { id: 'vco1', type: 'vco1', x: 260, y: 24 },
-      { id: 'vco2', type: 'vco2', x: 260, y: 260 },
-      { id: 'mixer1', type: 'mixer', x: 500, y: 24 },
-      { id: 'lfo1', type: 'lfo', x: 500, y: 260 },
+      { id: 'keyboard1', type: 'keyboard', x: 24, y: 24 },
+      { id: 'seq1', type: 'seq', x: 560, y: 24 },
+      { id: 'vco1', type: 'vco1', x: 860, y: 24 },
+      { id: 'vco2', type: 'vco2', x: 860, y: 260 },
+      { id: 'mixer1', type: 'mixer', x: 1160, y: 24 },
+      { id: 'lfo1', type: 'lfo', x: 1160, y: 260 },
       { id: 'vcf1', type: 'vcf', x: 24, y: 320 },
       { id: 'adsr1', type: 'adsr', x: 260, y: 320 },
       { id: 'vca1', type: 'vca', x: 500, y: 320 },
@@ -192,15 +215,17 @@ const PRESETS: Preset[] = [
     cables: [
       { id: 'c1', fromJackId: 'seq1_cv_out', toJackId: 'vco1_fm_in', color: '#ff4d6d' },
       { id: 'c2', fromJackId: 'seq1_cv_out', toJackId: 'vco2_fm_in', color: '#ff4d6d' },
-      { id: 'c3', fromJackId: 'seq1_gate_out', toJackId: 'adsr1_gate_in', color: '#fbbf24' },
-      { id: 'c4', fromJackId: 'vco1_out', toJackId: 'mixer1_ch1_in', color: '#ff9500' },
-      { id: 'c5', fromJackId: 'vco2_out', toJackId: 'mixer1_ch2_in', color: '#fb923c' },
-      { id: 'c6', fromJackId: 'mixer1_out', toJackId: 'vcf1_in', color: '#fbbf24' },
-      { id: 'c7', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
-      { id: 'c8', fromJackId: 'vcf1_out', toJackId: 'vca1_in', color: '#4ade80' },
-      { id: 'c9', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
-      { id: 'c10', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
-      { id: 'c11', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+      { id: 'c3', fromJackId: 'keyboard1_cv_out', toJackId: 'vco1_fm_in', color: '#38bdf8' },
+      { id: 'c4', fromJackId: 'keyboard1_cv_out', toJackId: 'vco2_fm_in', color: '#38bdf8' },
+      { id: 'c5', fromJackId: 'seq1_gate_out', toJackId: 'adsr1_gate_in', color: '#fbbf24' },
+      { id: 'c6', fromJackId: 'vco1_out', toJackId: 'mixer1_ch1_in', color: '#ff9500' },
+      { id: 'c7', fromJackId: 'vco2_out', toJackId: 'mixer1_ch2_in', color: '#fb923c' },
+      { id: 'c8', fromJackId: 'mixer1_out', toJackId: 'vcf1_in', color: '#fbbf24' },
+      { id: 'c9', fromJackId: 'lfo1_out', toJackId: 'vcf1_cv_in', color: '#38bdf8' },
+      { id: 'c10', fromJackId: 'vcf1_out', toJackId: 'vca1_in', color: '#4ade80' },
+      { id: 'c11', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
+      { id: 'c12', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c13', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
     ],
   },
   {
@@ -361,9 +386,21 @@ const ADD_OPTIONS = [
   { type: 'keyboard', label: 'Keyboard', color: '#38bdf8' },
 ];
 
+const MODULE_RACK_OPTIONS = ADD_OPTIONS.filter((opt) => opt.type !== 'keyboard');
+
 export default function App() {
   const [modules, setModules] = useState<ModuleInstance[]>(DEFAULT_MODULES);
-  const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [dragging, setDragging] = useState<{
+    id: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    offsetX: number;
+    offsetY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showPresetMenu, setShowPresetMenu] = useState(false);
   const [activePreset, setActivePreset] = useState('EMPTY');
@@ -382,9 +419,32 @@ export default function App() {
 
   const handleModuleStartDrag = useCallback((clientX: number, clientY: number, id: string, element: HTMLElement) => {
     if (element.closest('[data-nondrag]')) return;
+    if (!containerRef.current) return;
+
     const mod = modules.find((m) => m.id === id);
-    if (!mod) return;
-    setDragging({ id, startX: clientX, startY: clientY, origX: mod.x, origY: mod.y });
+    const activeModules = modules.filter((m) => m.type !== 'keyboard');
+    const moduleIndex = activeModules.findIndex((m) => m.id === id);
+    if (!mod || moduleIndex === -1) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const startX = clientX - rect.left + containerRef.current.scrollLeft;
+    const startY = clientY - rect.top + containerRef.current.scrollTop;
+    const origX = getSlotX(moduleIndex);
+    const origY = MODULE_GRID_Y;
+    const offsetX = startX - origX;
+    const offsetY = startY - origY;
+
+    setDragging({
+      id,
+      startX,
+      startY,
+      origX,
+      origY,
+      offsetX,
+      offsetY,
+      currentX: startX,
+      currentY: startY,
+    });
   }, [modules]);
 
   const handleModuleMouseDown = useCallback((e: React.MouseEvent, id: string) => {
@@ -399,80 +459,49 @@ export default function App() {
 
   useEffect(() => {
     if (!dragging) return;
-    
-    const PADDING = 20;
-    
-    const checkCollision = (rect1: any, rect2: any) => {
-      return !(
-        rect1.x + rect1.w + PADDING < rect2.x ||
-        rect2.x + rect2.w + PADDING < rect1.x ||
-        rect1.y + rect1.h + PADDING < rect2.y ||
-        rect2.y + rect2.h + PADDING < rect1.y
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
+      const currentX = clientX - rect.left + containerRef.current.scrollLeft;
+      const currentY = clientY - rect.top + containerRef.current.scrollTop;
+
+      setDragging((prev) =>
+        prev
+          ? { ...prev, currentX: Math.max(0, currentX), currentY: Math.max(0, currentY) }
+          : prev
       );
     };
     
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
-      const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
-      const dx = clientX - dragging.startX;
-      const dy = clientY - dragging.startY;
-      
+    const handleUp = () => {
+      if (!dragging) {
+        setDragging(null);
+        return;
+      }
+
       setModules((prev) => {
-        const originalModule = prev.find((m) => m.id === dragging.id);
-        if (!originalModule) return prev;
-        
-        let newX = Math.max(0, dragging.origX + dx);
-        let newY = Math.max(0, dragging.origY + dy);
-        
-        // Start with dragged module at new position
-        let modules = prev.map((m) =>
-          m.id === dragging.id ? { ...m, x: newX, y: newY } : m
-        );
-        
-        // Iteratively resolve collisions until stable
-        let collisionsFound = true;
-        let iterations = 0;
-        while (collisionsFound && iterations < 10) {
-          collisionsFound = false;
-          iterations++;
-          
-          modules = modules.map((mod) => {
-            if (mod.id === dragging.id) return mod; // Don't move the dragged module
-            
-            let currentX = mod.x;
-            let currentY = mod.y;
-            
-            // Check collision with all other modules
-            for (const other of modules) {
-              if (other.id === mod.id) continue;
-              
-              const modDims = getModuleDimensions(mod);
-              const otherDims = getModuleDimensions(other);
-              const modRect = { x: currentX, y: currentY, w: modDims.w, h: modDims.h };
-              const otherRect = { x: other.x, y: other.y, w: otherDims.w, h: otherDims.h };
-              
-              if (checkCollision(modRect, otherRect)) {
-                collisionsFound = true;
-                // Push away from the other module
-                const dx = currentX + modDims.w / 2 - (other.x + otherDims.w / 2);
-                const dy = currentY + modDims.h / 2 - (other.y + otherDims.h / 2);
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const pushDist = 15;
-                
-                currentX = Math.max(0, currentX + (dx / dist) * pushDist);
-                currentY = Math.max(0, currentY + (dy / dist) * pushDist);
-              }
-            }
-            
-            return { ...mod, x: currentX, y: currentY };
-          });
-        }
-        
-        return modules;
+        const moduleCount = prev.filter((m) => m.type !== 'keyboard').length;
+        const dropTargetModule = prev.find((m) => m.id === dragging.id);
+        const activeModules = prev.filter((m) => m.type !== 'keyboard');
+        const keyboardModules = prev.filter((m) => m.type === 'keyboard');
+        const moduleWidth = dropTargetModule ? getModuleDimensions(dropTargetModule).w : 200;
+        const dropX = dragging.currentX - dragging.offsetX + moduleWidth / 2;
+        const targetIndex = getClosestSlotIndex(dropX, moduleCount);
+
+        const actualFrom = activeModules.findIndex((m) => m.id === dragging.id);
+        if (actualFrom === -1) return prev;
+        if (actualFrom === targetIndex) return prev;
+
+        const reordered = [...activeModules];
+        const [moved] = reordered.splice(actualFrom, 1);
+        reordered.splice(targetIndex, 0, moved);
+
+        return [...reordered, ...keyboardModules];
       });
+      setDragging(null);
     };
-    
-    const handleUp = () => setDragging(null);
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
     window.addEventListener('touchmove', handleMove as any);
@@ -515,73 +544,36 @@ export default function App() {
     setShowPresetMenu(false);
   };
 
+  const KEYBOARD_PANEL_HEIGHT = 340;
+  const KEYBOARD_PANEL_SPACING = 24;
+  const activeModuleTypes = new Set(modules.map((m) => m.type));
+  const activeCanvasModules = modules.filter((m) => m.type !== 'keyboard');
+  const activeKeyboardModule = modules.find((m) => m.type === 'keyboard');
+  const canvasBottomPadding = activeKeyboardModule ? KEYBOARD_PANEL_HEIGHT + KEYBOARD_PANEL_SPACING : 0;
+
   const alignModules = () => {
-    const COLS = 3;
-    const SPACING_X = 350;
-    const SPACING_Y = 550;
+    const SPACING_X = 280;
+    const BASE_Y = 38;
     const PADDING = 20;
 
-    const checkCollision = (rect1: any, rect2: any) => {
-      return !(
-        rect1.x + rect1.w + PADDING < rect2.x ||
-        rect2.x + rect2.w + PADDING < rect1.x ||
-        rect1.y + rect1.h + PADDING < rect2.y ||
-        rect2.y + rect2.h + PADDING < rect1.y
-      );
-    };
-    
     setModules((prev) => {
-      // First, place modules in grid positions
-      let modules = prev.map((mod, idx) => ({
-        ...mod,
-        x: (idx % COLS) * SPACING_X,
-        y: Math.floor(idx / COLS) * SPACING_Y,
-      }));
+      let x = PADDING;
+      const modules = prev.map((mod) => {
+        if (mod.type === 'keyboard') return mod;
 
-      // Then iteratively resolve collisions until stable
-      let collisionsFound = true;
-      let iterations = 0;
-      while (collisionsFound && iterations < 10) {
-        collisionsFound = false;
-        iterations++;
-        
-        modules = modules.map((mod) => {
-          let currentX = mod.x;
-          let currentY = mod.y;
-          
-          // Check collision with all other modules
-          for (const other of modules) {
-            if (other.id === mod.id) continue;
-            
-            const modDims = getModuleDimensions(mod);
-            const otherDims = getModuleDimensions(other);
-            const modRect = { x: currentX, y: currentY, w: modDims.w, h: modDims.h };
-            const otherRect = { x: other.x, y: other.y, w: otherDims.w, h: otherDims.h };
-            
-            if (checkCollision(modRect, otherRect)) {
-              collisionsFound = true;
-              // Push away from the other module
-              const dx = currentX + modDims.w / 2 - (other.x + otherDims.w / 2);
-              const dy = currentY + modDims.h / 2 - (other.y + otherDims.h / 2);
-              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-              const pushDist = 25;
-              
-              currentX = Math.max(0, currentX + (dx / dist) * pushDist);
-              currentY = Math.max(0, currentY + (dy / dist) * pushDist);
-            }
-          }
-          
-          return { ...mod, x: currentX, y: currentY };
-        });
-      }
-      
+        const dims = getModuleDimensions(mod);
+        const next = { ...mod, x, y: BASE_Y };
+        x += dims.w + 20;
+        return next;
+      });
+
       return modules;
     });
   };
 
   // Canvas size
-  const canvasW = Math.max(1200, ...modules.map((m) => m.x + 250));
-  const canvasH = Math.max(900, ...modules.map((m) => m.y + 350));
+  const canvasW = Math.max(1200, MODULE_LEFT_PADDING + activeCanvasModules.length * MODULE_SLOT_SPACING + 260);
+  const canvasH = Math.max(900, MODULE_GRID_Y + 420);
 
   if (!started) {
     return (
@@ -916,11 +908,79 @@ export default function App() {
         </div>
       </div>
 
+      {/* Module rack - show all modules with inactive ones greyed out */}
+      <div className="flex-none px-6 pb-4 overflow-x-auto">
+        <div className="flex gap-3 min-w-full">
+          {MODULE_RACK_OPTIONS.map((slot) => {
+            const active = activeModuleTypes.has(slot.type);
+            return (
+              <div
+                key={slot.type}
+                className="rounded-3xl p-4 flex-shrink-0"
+                style={{
+                  width: 210,
+                  minWidth: 210,
+                  background: active ? '#101224' : '#0a0a14',
+                  border: '1px solid rgba(148,163,184,0.12)',
+                  opacity: active ? 1 : 0.35,
+                  filter: active ? 'none' : 'grayscale(1)',
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                      color: slot.color,
+                    }}
+                  >
+                    {slot.label}
+                  </div>
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: active ? slot.color : '#374151',
+                      boxShadow: active ? `0 0 8px ${slot.color}` : 'none',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  />
+                </div>
+                <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 11, color: '#9ca3af', minHeight: 30 }}>
+                  {active ? 'Active module loaded' : 'Inactive placeholder'}
+                </div>
+                {!active && (
+                  <button
+                    onClick={() => addModule(slot.type)}
+                    className="mt-3 rounded-full px-3 py-2"
+                    style={{
+                      width: '100%',
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      letterSpacing: '0.12em',
+                      border: '1px solid rgba(148,163,184,0.16)',
+                      background: 'rgba(255,255,255,0.04)',
+                      color: '#cbd5e1',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ADD MODULE
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Canvas */}
       <div
         ref={containerRef}
         className="flex-1 overflow-auto relative"
-        style={{ background: 'transparent' }}
+        style={{ background: 'transparent', paddingBottom: canvasBottomPadding }}
         onClick={handleCanvasClick}
       >
         {/* Background grid - hidden on mobile */}
@@ -954,71 +1014,92 @@ export default function App() {
         />
 
         {/* Modules */}
-        <div 
+        <div
           className="synth-modules-container"
-          style={{ position: 'relative', minWidth: canvasW, minHeight: canvasH }}>
-          {modules.map((mod) => (
-            <div
-              key={mod.id}
-              className="synth-module-wrapper"
-              style={{
-                position: 'absolute',
-                left: mod.x,
-                top: mod.y,
-                zIndex: dragging?.id === mod.id ? 50 : 10,
-                filter: dragging?.id === mod.id ? 'drop-shadow(0 8px 24px rgba(0,0,0,0.8))' : undefined,
-              }}
-            >
-              {/* Drag handle */}
+          style={{ position: 'relative', minWidth: canvasW, minHeight: canvasH }}
+        >
+          {activeCanvasModules.map((mod, index) => {
+            const isDragging = dragging?.id === mod.id;
+            const displayX = isDragging && dragging ? Math.max(0, dragging.currentX - dragging.offsetX) : getSlotX(index);
+            const displayY = MODULE_GRID_Y;
+            return (
               <div
-                className="flex items-center justify-between px-2 mb-0.5 rounded-t cursor-move"
+                key={mod.id}
+                className="synth-module-wrapper"
                 style={{
-                  background: '#0a0a18',
-                  border: '1px solid #1a1a30',
-                  borderBottom: 'none',
-                  height: 18,
-                  touchAction: 'manipulation',
+                  position: 'absolute',
+                  left: displayX,
+                  top: displayY,
+                  zIndex: isDragging ? 50 : 10,
+                  filter: isDragging ? 'drop-shadow(0 8px 24px rgba(0,0,0,0.8))' : undefined,
                 }}
-                onMouseDown={(e) => handleModuleMouseDown(e, mod.id)}
-                onTouchStart={(e) => handleModuleTouchStart(e, mod.id)}
               >
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="rounded-full" style={{ width: 4, height: 4, background: '#222244' }} />
-                  ))}
-                </div>
-                <div style={{ fontSize: 7, color: '#333355', fontFamily: 'monospace', letterSpacing: '0.1em' }}>
-                  ⠿⠿⠿
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeModule(mod.id); }}
-                  className="transition-all"
+                {/* Drag handle */}
+                <div
+                  className="flex items-center justify-between px-2 mb-0.5 rounded-t cursor-move"
                   style={{
-                    fontFamily: 'monospace',
-                    fontSize: 9,
-                    color: '#333355',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    lineHeight: 1,
-                    padding: '0 2px',
+                    background: '#0a0a18',
+                    border: '1px solid #1a1a30',
+                    borderBottom: 'none',
+                    height: 18,
+                    touchAction: 'manipulation',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#333355')}
-                  data-nondrag="true"
+                  onMouseDown={(e) => handleModuleMouseDown(e, mod.id)}
+                  onTouchStart={(e) => handleModuleTouchStart(e, mod.id)}
                 >
-                  ✕
-                </button>
-              </div>
+                  <div className="flex gap-1">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="rounded-full" style={{ width: 4, height: 4, background: '#222244' }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 7, color: '#333355', fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                    ⠿⠿⠿
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeModule(mod.id); }}
+                    className="transition-all"
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: 9,
+                      color: '#333355',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      lineHeight: 1,
+                      padding: '0 2px',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#333355')}
+                    data-nondrag="true"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-              {/* Module content */}
-              <div data-nondrag="true" onMouseDown={(e) => e.stopPropagation()}>
-                {renderModule(mod)}
+                {/* Module content */}
+                <div data-nondrag="true" onMouseDown={(e) => e.stopPropagation()}>
+                  {renderModule(mod)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {activeKeyboardModule && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: 24,
+            zIndex: 40,
+            transform: 'translateX(-50%)',
+            pointerEvents: 'auto',
+          }}
+        >
+          <KeyboardModule id={activeKeyboardModule.id} />
+        </div>
+      )}
 
       {/* Patch cables SVG overlay */}
       <PatchBay />
