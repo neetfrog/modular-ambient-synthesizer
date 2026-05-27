@@ -7,10 +7,43 @@ interface OscilloscopeModuleProps {
   id: string;
 }
 
+// Pre-calculate grid pattern
+function createGridCanvas(width: number, height: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  // Grid
+  ctx.strokeStyle = '#1a1a30';
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo((i / 4) * width, 0);
+    ctx.lineTo((i / 4) * width, height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, (i / 4) * height);
+    ctx.lineTo(width, (i / 4) * height);
+    ctx.stroke();
+  }
+  // Center line
+  ctx.strokeStyle = '#2a2a4a';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, height / 2);
+  ctx.lineTo(width, height / 2);
+  ctx.stroke();
+
+  return canvas;
+}
+
 function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
   const engine = getAudioEngine();
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gridCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animRef = useRef<number>(0);
   const inputGainRef = useRef<GainNode | null>(null);
   const [inputNode, setInputNode] = useState<GainNode | null>(null);
@@ -41,6 +74,11 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
     const ctx2d = canvas.getContext('2d');
     if (!ctx2d) return;
 
+    // Create grid canvas once
+    if (!gridCanvasRef.current) {
+      gridCanvasRef.current = createGridCanvas(canvas.width, canvas.height);
+    }
+
     let lastUpdate = 0;
     const updateInterval = 33; // ~30fps
 
@@ -59,26 +97,10 @@ function OscilloscopeModuleComponent({ id }: OscilloscopeModuleProps) {
       ctx2d.fillStyle = 'rgba(8, 8, 26, 0.3)';
       ctx2d.fillRect(0, 0, W, H);
 
-      // Grid
-      ctx2d.strokeStyle = '#1a1a30';
-      ctx2d.lineWidth = 0.5;
-      for (let i = 1; i < 4; i++) {
-        ctx2d.beginPath();
-        ctx2d.moveTo((i / 4) * W, 0);
-        ctx2d.lineTo((i / 4) * W, H);
-        ctx2d.stroke();
-        ctx2d.beginPath();
-        ctx2d.moveTo(0, (i / 4) * H);
-        ctx2d.lineTo(W, (i / 4) * H);
-        ctx2d.stroke();
+      // Draw pre-cached grid
+      if (gridCanvasRef.current) {
+        ctx2d.drawImage(gridCanvasRef.current, 0, 0);
       }
-      // Center line
-      ctx2d.strokeStyle = '#2a2a4a';
-      ctx2d.lineWidth = 0.5;
-      ctx2d.beginPath();
-      ctx2d.moveTo(0, H / 2);
-      ctx2d.lineTo(W, H / 2);
-      ctx2d.stroke();
 
       if (mode === 'time') {
         const bufLen = analyser.frequencyBinCount;

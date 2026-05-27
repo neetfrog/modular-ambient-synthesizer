@@ -32,6 +32,7 @@ function SequencerModuleComponent({ id }: SequencerModuleProps) {
   const [isPlaying, setIsPlaying] = useState(true);
   const stepRef = useRef(0);
   const timerRef = useRef<number | null>(null);
+  const lastTickTimeRef = useRef(0);
   const accentColor = '#fbbf24';
 
   useEffect(() => {
@@ -97,15 +98,31 @@ function SequencerModuleComponent({ id }: SequencerModuleProps) {
 
   useEffect(() => {
     if (!isPlaying) {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) cancelAnimationFrame(timerRef.current);
       setCurrentStep(-1);
       return;
     }
     engine.resume();
-    const interval = (60 / bpm) * 1000;
-    timerRef.current = window.setInterval(tick, interval);
+    const stepDuration = 60 / bpm; // seconds per step
+
+    // Use RAF with Web Audio timing for precise scheduling
+    const scheduleNextTick = () => {
+      const now = engine.ctx.currentTime;
+      const timeSinceLastTick = now - lastTickTimeRef.current;
+
+      if (timeSinceLastTick >= stepDuration || lastTickTimeRef.current === 0) {
+        lastTickTimeRef.current = now;
+        tick();
+      }
+
+      timerRef.current = requestAnimationFrame(scheduleNextTick);
+    };
+
+    lastTickTimeRef.current = engine.ctx.currentTime;
+    timerRef.current = requestAnimationFrame(scheduleNextTick);
+
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) cancelAnimationFrame(timerRef.current);
     };
   }, [isPlaying, bpm, tick, engine]);
 
