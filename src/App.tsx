@@ -24,18 +24,7 @@ interface ModuleInstance {
 }
 
 const DEFAULT_MODULES: ModuleInstance[] = [
-  { id: 'vco1', type: 'vco1', x: 24, y: 24 },
-  { id: 'vco2', type: 'vco2', x: 230, y: 24 },
-  { id: 'noise1', type: 'noise', x: 436, y: 24 },
-  { id: 'lfo1', type: 'lfo', x: 600, y: 24 },
-  { id: 'adsr1', type: 'adsr', x: 786, y: 24 },
-  { id: 'vcf1', type: 'vcf', x: 24, y: 360 },
-  { id: 'vca1', type: 'vca', x: 220, y: 360 },
-  { id: 'mixer1', type: 'mixer', x: 382, y: 360 },
-  { id: 'delay1', type: 'delay', x: 600, y: 360 },
-  { id: 'reverb1', type: 'reverb', x: 786, y: 360 },
-  { id: 'scope1', type: 'scope', x: 24, y: 680 },
-  { id: 'output1', type: 'output', x: 240, y: 680 },
+  { id: 'output1', type: 'output', x: 24, y: 24 },
 ];
 
 interface PresetModule {
@@ -326,6 +315,60 @@ const PRESETS: Preset[] = [
       { id: 'c7', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
     ],
   },
+  {
+    name: 'PLUCK',
+    description: 'Plucked string: VCO shaped by ADSR envelope for percussive decay',
+    emoji: '↗︿',
+    modules: [
+      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
+      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
+      { id: 'vca1', type: 'vca', x: 500, y: 24 },
+      { id: 'output1', type: 'output', x: 24, y: 320 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'adsr1_gate_in', color: '#ff9500' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
+      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+    ],
+  },
+  {
+    name: 'NOISE PUNCH',
+    description: 'Noise burst shaped by snappy ADSR (kick/punch sound)',
+    emoji: '⋈↘',
+    modules: [
+      { id: 'noise1', type: 'noise', x: 24, y: 24 },
+      { id: 'adsr1', type: 'adsr', x: 260, y: 24 },
+      { id: 'vca1', type: 'vca', x: 500, y: 24 },
+      { id: 'output1', type: 'output', x: 24, y: 320 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'noise1_out', toJackId: 'adsr1_gate_in', color: '#e2e8f0' },
+      { id: 'c2', fromJackId: 'noise1_out', toJackId: 'vca1_in', color: '#e2e8f0' },
+      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vca1_cv_in', color: '#a78bfa' },
+      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+    ],
+  },
+  {
+    name: 'FILTER SWEEP',
+    description: 'ADSR sweeps filter cutoff for dynamic tone shaping',
+    emoji: '∿⊞︿',
+    modules: [
+      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
+      { id: 'vcf1', type: 'vcf', x: 260, y: 24 },
+      { id: 'adsr1', type: 'adsr', x: 500, y: 24 },
+      { id: 'output1', type: 'output', x: 24, y: 320 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'adsr1_gate_in', color: '#ff9500' },
+      { id: 'c2', fromJackId: 'vco1_out', toJackId: 'vcf1_in', color: '#ff9500' },
+      { id: 'c3', fromJackId: 'adsr1_env_out', toJackId: 'vcf1_cv_in', color: '#a78bfa' },
+      { id: 'c4', fromJackId: 'vcf1_out', toJackId: 'output1_l_in', color: '#4ade80' },
+      { id: 'c5', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
+    ],
+  },
 ];
 
 function renderModule(mod: ModuleInstance) {
@@ -367,7 +410,7 @@ export default function App() {
   const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showPresetMenu, setShowPresetMenu] = useState(false);
-  const [activePreset, setActivePreset] = useState(PRESETS[0].name);
+  const [activePreset, setActivePreset] = useState('EMPTY');
   const [started, setStarted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { cancelDrag, draggingFrom, cables } = usePatchStore();

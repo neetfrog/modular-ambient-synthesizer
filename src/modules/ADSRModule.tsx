@@ -11,7 +11,11 @@ interface ADSRModuleProps {
 function ADSRModuleComponent({ id }: ADSRModuleProps) {
   const engine = getAudioEngine();
   const envGainRef = useRef<GainNode | null>(null);
+  const constantSourceRef = useRef<ConstantSourceNode | null>(null);
+  const gateInputRef = useRef<GainNode | null>(null);
+  const gateAnalyserRef = useRef<AnalyserNode | null>(null);
   const [envNode, setEnvNode] = useState<GainNode | null>(null);
+  const [gateInputNode, setGateInputNode] = useState<GainNode | null>(null);
 
   const [attack, setAttack] = useState(0.5);
   const [decay, setDecay] = useState(0.3);
@@ -19,14 +23,44 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
   const [release, setRelease] = useState(1.2);
   const [isGate, setIsGate] = useState(false);
   const accentColor = '#a78bfa';
+  const rafIdRef = useRef<number | null>(null);
+  const lastGateStateRef = useRef(false);
 
   useEffect(() => {
     const ctx = engine.ctx;
     const gain = ctx.createGain();
     gain.gain.value = 0;
+    
+    // Create constant source to feed through the envelope (amplified for noticeable CV output)
+    const constantSource = ctx.createConstantSource();
+    constantSource.offset.value = 5; // 5V output for noticeable modulation
+    constantSource.connect(gain);
+    constantSource.start();
+    
+    // Create gate input node (receives audio from patches)
+    const gateInput = ctx.createGain();
+    gateInput.gain.value = 1;
+    
+    // Create analyser to detect gate signal
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    gateInput.connect(analyser);
+    
     envGainRef.current = gain;
+    constantSourceRef.current = constantSource;
+    gateInputRef.current = gateInput;
+    gateAnalyserRef.current = analyser;
     setEnvNode(gain);
-    return () => gain.disconnect();
+    setGateInputNode(gateInput);
+    
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      constantSource.stop();
+      constantSource.disconnect();
+      analyser.disconnect();
+      gateInput.disconnect();
+      gain.disconnect();
+    };
   }, [engine.ctx]);
 
   const triggerEnvelope = useCallback(() => {
@@ -66,6 +100,60 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
     
     console.log('ADSR released:', { release, currentValue });
   }, [release]);
+
+  // Monitor gate input for incoming audio to auto-trigger envelope
+  useEffect(() => {
+    if (!gateAnalyserRef.current) return;
+    
+    const analyser = gateAnalyserRef.current;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const threshold = 60; // Higher threshold to avoid re-triggering on continuous signals
+    let stableCount = 0; // Debounce: require 3 consecutive frames of same state
+    let lastStableState = false;
+    
+    const checkGateSignal = () => {
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average energy across frequency bins
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+      const hasGate = average > threshold;
+      
+      // Debounce: require signal to be stable for 3 frames before triggering
+      if (hasGate === lastStableState) {
+        stableCount++;
+      } else {
+        stableCount = 0;
+        lastStableState = hasGate;
+      }
+      
+      const stableHasGate = stableCount >= 3 ? hasGate : lastGateStateRef.current;
+      
+      // Trigger/release based on stable gate signal change
+      if (stableCount >= 3) {
+        if (stableHasGate && !lastGateStateRef.current) {
+          triggerEnvelope();
+          lastGateStateRef.current = true;
+        } else if (!stableHasGate && lastGateStateRef.current) {
+          releaseEnvelope();
+          lastGateStateRef.current = false;
+        }
+      }
+      
+      rafIdRef.current = requestAnimationFrame(checkGateSignal);
+    };
+    
+    rafIdRef.current = requestAnimationFrame(checkGateSignal);
+    
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [triggerEnvelope, releaseEnvelope]);
 
   // Re-trigger envelope when knobs change while gate is active
   useEffect(() => {
@@ -176,7 +264,7 @@ function ADSRModuleComponent({ id }: ADSRModuleProps) {
       <ModuleIOSection
         ports={[
           { id: `${id}_env_out`, moduleId: id, type: 'output', label: 'ENV', audioNode: envNode ?? undefined },
-          { id: `${id}_gate_in`, moduleId: id, type: 'input', label: 'GATE' },
+          { id: `${id}_gate_in`, moduleId: id, type: 'input', label: 'GATE', audioNode: gateInputNode ?? undefined },
         ]}
         title="OUTPUTS"
       />
