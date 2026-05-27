@@ -14,6 +14,9 @@ import MixerModule from './modules/MixerModule';
 import OscilloscopeModule from './modules/OscilloscopeModule';
 import OutputModule from './modules/OutputModule';
 import SequencerModule from './modules/SequencerModule';
+import ClockDividerModule from './modules/ClockDividerModule';
+import AttenuatorModule from './modules/AttenuatorModule';
+import MultModule from './modules/MultModule';
 import { getAudioEngine } from './audio/AudioEngine';
 
 interface ModuleInstance {
@@ -369,6 +372,40 @@ const PRESETS: Preset[] = [
       { id: 'c5', fromJackId: 'vcf1_out', toJackId: 'output1_r_in', color: '#4ade80' },
     ],
   },
+  {
+    name: 'MULT BASIC',
+    description: 'Test Mult: VCO split to 2 outputs',
+    emoji: '∿✕',
+    modules: [
+      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
+      { id: 'mult1', type: 'mult', x: 260, y: 24 },
+      { id: 'output1', type: 'output', x: 500, y: 24 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'mult1_in', color: '#ff9500' },
+      { id: 'c2', fromJackId: 'mult1_out1', toJackId: 'output1_l_in', color: '#fb923c' },
+      { id: 'c3', fromJackId: 'mult1_out2', toJackId: 'output1_r_in', color: '#fb923c' },
+    ],
+  },
+  {
+    name: 'ATTEN BASIC',
+    description: 'Test Atten: LFO attenuated to control VCA',
+    emoji: '◈▔',
+    modules: [
+      { id: 'vco1', type: 'vco1', x: 24, y: 24 },
+      { id: 'lfo1', type: 'lfo', x: 260, y: 24 },
+      { id: 'atten1', type: 'atten', x: 500, y: 24 },
+      { id: 'vca1', type: 'vca', x: 24, y: 320 },
+      { id: 'output1', type: 'output', x: 260, y: 320 },
+    ],
+    cables: [
+      { id: 'c1', fromJackId: 'vco1_out', toJackId: 'vca1_in', color: '#ff9500' },
+      { id: 'c2', fromJackId: 'lfo1_out', toJackId: 'atten1_in', color: '#38bdf8' },
+      { id: 'c3', fromJackId: 'atten1_out', toJackId: 'vca1_cv_in', color: '#60a5fa' },
+      { id: 'c4', fromJackId: 'vca1_out', toJackId: 'output1_l_in', color: '#f472b6' },
+      { id: 'c5', fromJackId: 'vca1_out', toJackId: 'output1_r_in', color: '#f472b6' },
+    ],
+  },
 ];
 
 function renderModule(mod: ModuleInstance) {
@@ -386,6 +423,9 @@ function renderModule(mod: ModuleInstance) {
     case 'scope': return <OscilloscopeModule id={mod.id} />;
     case 'output': return <OutputModule id={mod.id} />;
     case 'seq': return <SequencerModule id={mod.id} />;
+    case 'clock': return <ClockDividerModule id={mod.id} />;
+    case 'atten': return <AttenuatorModule id={mod.id} />;
+    case 'mult': return <MultModule id={mod.id} />;
     default: return null;
   }
 }
@@ -403,6 +443,9 @@ const ADD_OPTIONS = [
   { type: 'scope', label: 'Oscilloscope', color: '#a78bfa' },
   { type: 'output', label: 'Output', color: '#f43f5e' },
   { type: 'seq', label: 'Step Sequencer', color: '#fbbf24' },
+  { type: 'clock', label: 'Clock Divider', color: '#fbbf24' },
+  { type: 'atten', label: 'Attenuator', color: '#60a5fa' },
+  { type: 'mult', label: 'Mult Splitter', color: '#f472b6' },
 ];
 
 export default function App() {
